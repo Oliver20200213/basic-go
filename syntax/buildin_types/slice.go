@@ -61,3 +61,25 @@ func ShareSlice() {
 	//扩容会重新创建底层数组
 
 }
+
+func UseSumInt(vals []int) {
+	s1 := []int{11, 22, 33}
+	res := SumInt(s1)
+	fmt.Println(res)
+}
+
+func SumInt(vals []int) int {
+	var res int
+	for _, v := range vals {
+		res += v
+	}
+	return res
+}
+
+func SumInt64(vals []int64) int64 {
+	var res int64
+	for _, v := range vals {
+		res += v
+	}
+	return res
+}

@@ -58,6 +58,7 @@ func DeferReturnV1() (a int) {
 func DeferClosureLoopV1() {
 	for i := 0; i < 10; i++ {
 		defer func() {
+			fmt.Printf("i的地址是%p,值是%d\n", &i, i)
 			println(i)
 		}()
 	}
@@ -68,6 +69,8 @@ func DeferClosureLoopV1() {
 func DeferClosureLoopV2() {
 	for i := 0; i < 10; i++ {
 		defer func(val int) {
+			//val的地址不同，每次defer执行时i才确定下来
+			fmt.Printf("val的地址是%p,值是%d\n", &val, val)
 			println(val)
 		}(i)
 	}
@@ -79,6 +82,19 @@ func DeferClosureLoopV3() {
 	for i := 0; i < 10; i++ {
 		j := i
 		defer func() {
+			//j的地址不同，每次defer执行时j才确定下来
+			fmt.Printf("j的地址是%p,值是%d\n", &j, j)
+			println(j)
+		}()
+	}
+}
+func DeferClosureLoopV4() {
+	var j int
+	for i := 0; i < 10; i++ {
+		j = i
+		defer func() {
+			//j的地址相同
+			fmt.Printf("j的地址是%p,值是%d\n", &j, j)
 			println(j)
 		}()
 	}

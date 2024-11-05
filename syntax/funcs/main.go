@@ -37,8 +37,9 @@ func main() {
 	//println(DeferReturn())
 	//println(DeferReturnV1())
 
-	//DeferClosureLoopV1()
-	//DeferClosureLoopV2()
+	DeferClosureLoopV1()
+	DeferClosureLoopV2()
 	DeferClosureLoopV3()
+	DeferClosureLoopV4()
 
 }
