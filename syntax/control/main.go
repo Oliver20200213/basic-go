@@ -4,5 +4,6 @@ func main() {
 
 	//ForArr()
 	//ForMap()
-	LoopBug()
+	//LoopBug()
+	LoopContinue()
 }
