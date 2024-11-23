@@ -16,6 +16,9 @@ type UserHandler struct {
 func NewUserHandler() *UserHandler {
 	const (
 		emailRegexPattern = "^\\w+(-+.\\w+)*@\\w+(-.\\w+)*.\\w+(-.\\w+)*$"
+		//使用``不用进行转义
+		//emailRegexPattern :=
+
 		//注意go标准的正则库不支持复杂的正则，需要引入额外的库github.com/dlclark/regexp2
 		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
 	)
@@ -49,7 +52,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	type SignUpReq struct {
 		Email           string `json:"email"`
 		Password        string `json:"password"`
-		ConfirmPassword string `json:"confirm_password"`
+		ConfirmPassword string `json:"confirmPassword"`
 	}
 
 	var req SignUpReq
