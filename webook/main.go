@@ -1,10 +1,15 @@
 package main
 
 import (
+	"basic-go/webook/internal/repository"
+	"basic-go/webook/internal/repository/dao"
+	"basic-go/webook/internal/service"
 	"basic-go/webook/internal/web"
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"gorm.io/driver/mysql"
+	"gorm.io/gorm"
 	"strings"
 	"time"
 )
@@ -38,8 +43,14 @@ func main() {
 		},
 		MaxAge: 12 * time.Hour, //profile的有效期
 	}))
-
-	u := web.NewUserHandler()
+	db, err := gorm.Open(mysql.Open("root:root@tcp(127.0.0.1:13316)/webook"))
+	if err != nil {
+		panic(err)
+	}
+	ud := dao.NewUserDAO(db)
+	repo := repository.NewRepository(ud)
+	svc := service.NewUserService(repo)
+	u := web.NewUserHandler(svc)
 	//另一种分组方式
 	//u.RegisterRoutesV1(server.Group("/users"))
 	u.RegisterRoutes(server)
