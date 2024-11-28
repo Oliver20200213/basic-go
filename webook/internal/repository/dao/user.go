@@ -26,10 +26,9 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 // User直接对应于数据库表结构
 // 有些人叫做 entity,有些人叫做 model 有些人叫做PO(persistent object)
 type User struct {
-	Id       int64
-	Email    string
+	Id       int64  `gorm:"primaryKey,autoIncrement"`
+	Email    string `gorm:"unique"`
 	Password string
-
 	//创建时间，毫秒数
 	Ctime int64
 	//更新时间，毫秒数

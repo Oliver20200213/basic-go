@@ -15,6 +15,15 @@ import (
 )
 
 func main() {
+	db := initDB()
+	server := initServer()
+	u := initUser(db)
+	u.RegisterRoutes(server)
+	server.Run(":8080")
+
+}
+
+func initServer() *gin.Engine {
 	server := gin.Default()
 
 	server.Use(func(c *gin.Context) { //先注册先执行后注册后执行
@@ -43,16 +52,31 @@ func main() {
 		},
 		MaxAge: 12 * time.Hour, //profile的有效期
 	}))
-	db, err := gorm.Open(mysql.Open("root:root@tcp(127.0.0.1:13316)/webook"))
-	if err != nil {
-		panic(err)
-	}
+	return server
+}
+
+func initUser(db *gorm.DB) *web.UserHandler {
 	ud := dao.NewUserDAO(db)
 	repo := repository.NewRepository(ud)
 	svc := service.NewUserService(repo)
 	u := web.NewUserHandler(svc)
-	//另一种分组方式
-	//u.RegisterRoutesV1(server.Group("/users"))
-	u.RegisterRoutes(server)
-	server.Run(":8080")
+	return u
+}
+
+func initDB() *gorm.DB {
+	db, err := gorm.Open(mysql.Open("root:root@tcp(127.0.0.1:13316)/webook"))
+	if err != nil {
+		//只会再初始化过程中 panic
+		//panic相当于证个goroutine结束
+		//一段初始化过程出错，应用就不要启动了
+		panic(err)
+	}
+
+	//初始化建表语句
+	err = dao.InitTable(db)
+	if err != nil {
+		panic(err)
+	}
+
+	return db
 }
