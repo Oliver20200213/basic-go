@@ -3,6 +3,7 @@ package web
 import (
 	"basic-go/webook/internal/domain"
 	"basic-go/webook/internal/service"
+	"errors"
 	"fmt"
 	regexp "github.com/dlclark/regexp2" //引入新的正则库替代标准库 这样引入可以使用regexp调用而不是regexp2
 	"github.com/gin-gonic/gin"
@@ -23,7 +24,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 		//emailRegexPattern := `^\w+(-+.\w+)*@\w+(-.\w+)*.\w+(-.\w+)*$`
 
 		//注意go标准的正则库不支持复杂的正则，需要引入额外的库github.com/dlclark/regexp2
-		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,}$`
+		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,72}$`
 	)
 	//先预编译
 	emailExp := regexp.MustCompile(emailRegexPattern, regexp.None) //regexp.None第二个参数可以随便填
@@ -74,7 +75,6 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 		return
 	}
 	if !ok {
-
 		ctx.String(http.StatusOK, "你的邮箱格式不对")
 		return
 	}
@@ -98,6 +98,12 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 		Email:    req.Email,
 		Password: req.Password,
 	})
+	//errors.Is(err,service.ErrUserDuplicateEmail)  这个是错误的最佳实践
+	//判断err是否和ErrUserDuplicateEmail相等，如果相等.web返回true
+	if err == service.ErrUserDuplicateEmail {
+		ctx.String(http.StatusOK, "邮箱冲突")
+		return
+	}
 	if err != nil {
 		ctx.String(http.StatusOK, "系统异常")
 		return
@@ -107,7 +113,29 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "注册成功  ")
 }
 
-func (u *UserHandler) Login(ctx *gin.Context) {}
+func (u *UserHandler) Login(ctx *gin.Context) {
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+	}
+	err := u.svc.Login(ctx, req.Email, req.Password)
+	if errors.Is(err, service.ErrInvalidUserOrPassword) {
+		ctx.String(http.StatusOK, "用户或密码错误")
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	ctx.String(http.StatusOK, "登录成功")
+	return
+
+}
 
 func (u *UserHandler) Edit(ctx *gin.Context) {}
 
