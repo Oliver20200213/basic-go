@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	regexp "github.com/dlclark/regexp2" //引入新的正则库替代标准库 这样引入可以使用regexp调用而不是regexp2
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -91,6 +92,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	}
 	if !ok {
 		ctx.String(http.StatusOK, "密码必须大于8位，包含数字、特殊字符")
+		return
 	}
 
 	//调用service方法
@@ -111,6 +113,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 
 	fmt.Printf("%v\n", req)
 	ctx.String(http.StatusOK, "注册成功  ")
+	return
 }
 
 func (u *UserHandler) Login(ctx *gin.Context) {
@@ -122,7 +125,7 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	if err := ctx.Bind(&req); err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 	}
-	err := u.svc.Login(ctx, req.Email, req.Password)
+	user, err := u.svc.Login(ctx, req.Email, req.Password)
 	if errors.Is(err, service.ErrInvalidUserOrPassword) {
 		ctx.String(http.StatusOK, "用户或密码错误")
 		return
@@ -132,6 +135,15 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 		return
 	}
 
+	//session实现步骤2
+	//登录成功之后
+	//设置session
+	sess := sessions.Default(ctx)
+	//可以随便设置值了
+	//要放在session里面的值
+	sess.Set("userId", user.Id)
+	sess.Save()
+
 	ctx.String(http.StatusOK, "登录成功")
 	return
 
@@ -139,4 +151,7 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 
 func (u *UserHandler) Edit(ctx *gin.Context) {}
 
-func (u *UserHandler) Profile(ctx *gin.Context) {}
+func (u *UserHandler) Profile(ctx *gin.Context) {
+	ctx.String(http.StatusOK, "这是profile页面")
+	return
+}

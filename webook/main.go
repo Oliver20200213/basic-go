@@ -5,8 +5,11 @@ import (
 	"basic-go/webook/internal/repository/dao"
 	"basic-go/webook/internal/service"
 	"basic-go/webook/internal/web"
+	"basic-go/webook/internal/web/middleware"
 	"fmt"
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -52,6 +55,26 @@ func initServer() *gin.Engine {
 		},
 		MaxAge: 12 * time.Hour, //profile的有效期
 	}))
+
+	//session实现步骤1
+	//store是可以使用redis的
+	store := cookie.NewStore([]byte("secret"))   //存储的地方
+	server.Use(sessions.Sessions("ssid", store)) //mysession是cookie中的名字，store是值
+	//session实现步骤3
+	//server.Use(middleware.NewLoginMiddlewareBuilder().Build())
+	//链式调用,最好的实现
+	server.Use(middleware.NewLoginMiddlewareBuilder().
+		IgnorePaths("/users/login").
+		IgnorePaths("/users/signup").Build())
+
+	//版本1
+	////忽略sss路径
+	//middleware.IgnorePaths = []string{"sss"}
+	//server.Use(middleware.CheckLogin())
+	////又有一个server不能忽略sss这个路径,此时v1版本无法实现
+	//server1 := gin.Default()
+	//server1.Use(middleware.CheckLogin())
+
 	return server
 }
 

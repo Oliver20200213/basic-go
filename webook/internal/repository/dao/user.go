@@ -22,13 +22,6 @@ func NewUserDAO(db *gorm.DB) *UserDAO {
 		db: db,
 	}
 }
-func (dao *UserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
-	var u User
-	err := dao.db.WithContext(ctx).Where("email=?", email).First(&u).Error
-	//方式二:
-	//err := dao.db.WithContext(ctx).First(&u, "email=?",email).Error
-	return u, err
-}
 
 func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 	//存毫秒数
@@ -48,6 +41,14 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 		}
 	}
 	return err
+}
+func (dao *UserDAO) FindByEmail(ctx context.Context, email string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("email=?", email).First(&u).Error
+	//方式二:
+	//err := dao.db.WithContext(ctx).First(&u, "email=?",email).Error
+	return u, err
+	//如果邮箱不存在就会返回gorm.ErrRecordNotFound的错误
 }
 
 // User直接对应于数据库表结构
