@@ -60,5 +60,14 @@ type User struct {
 	//创建时间，毫秒数
 	Ctime int64
 	//更新时间，毫秒数
-	Utime int64
+	Utime    int64
+	NickName string
+	BirthDay string
+	Describe string
+}
+
+func (dao *UserDAO) FindById(ctx context.Context, id int64) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("id=?", id).First(&u).Error
+	return u, err
 }

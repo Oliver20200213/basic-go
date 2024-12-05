@@ -1,16 +1,16 @@
 package service
 
 import (
-	"basic-go/practice/wetest/intenal/domain"
-	"basic-go/practice/wetest/intenal/repository"
+	"basic-go/practice/intenal/domain"
+	"basic-go/practice/intenal/repository"
 	"context"
 	"errors"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	ErrDuplicateEmail        = repository.ErrDuplicateEmail
-	ErrInvalidUserOrPassword = errors.New("用户面或密码错误")
+	ErrUserDuplicateEmail    = repository.ErrUserDuplicateEmail
+	ErrInvalidUserOrPassword = errors.New("用户名/邮箱或密码错误")
 )
 
 type UserService struct {
@@ -30,18 +30,17 @@ func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
 	return svc.repo.Create(ctx, u)
 
 }
-
-func (svc *UserService) Login(ctx context.Context, email, password string) error {
+func (svc *UserService) Login(ctx context.Context, email, password string) (domain.User, error) {
 	u, err := svc.repo.FindByEmail(ctx, email)
 	if errors.Is(err, repository.ErrUserNotFound) {
-		return ErrInvalidUserOrPassword
+		return domain.User{}, ErrInvalidUserOrPassword
 	}
 	if err != nil {
-		return err
+		return domain.User{}, err
 	}
 	err = bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(password))
 	if err != nil {
-		return ErrInvalidUserOrPassword
+		return domain.User{}, ErrInvalidUserOrPassword
 	}
-	return nil
+	return u, nil
 }

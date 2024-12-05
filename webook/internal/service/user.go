@@ -10,6 +10,7 @@ import (
 
 var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
 var ErrInvalidUserOrPassword = errors.New("账户/邮箱或密码错误")
+var ErrInvalidUserID = errors.New("无效的用户ID")
 
 type UserService struct {
 	repo *repository.UserRepository
@@ -51,4 +52,16 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
 	return u, nil
+}
+
+func (svc *UserService) Edit(ctx context.Context, u domain.User) error {
+	u, err := svc.repo.FindById(ctx, u.Id)
+	if errors.Is(err, repository.ErrUserNotFind) {
+		return ErrInvalidUserID
+	}
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -12,10 +12,11 @@ services:
     ports:
       # 映射端口为13316
       - "13316:3306"
-#  redis:
-#    image: 'bitnami/redis:latest'
-#    entrypoint:
-#      - ALLOW_EMPTY_PASSWORD=yes
-#    ports:
-#      - '6379:6379'
+  redis:
+    image: 'bitnami/redis:latest'
+    restart: always
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '6379:6379'
 

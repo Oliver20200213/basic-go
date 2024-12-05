@@ -142,14 +142,58 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 	//可以随便设置值了
 	//要放在session里面的值
 	sess.Set("userId", user.Id)
+	//配置options,option是用来控制cookie的
+	sess.Options(sessions.Options{
+		//生产环境中需要开启下面两项
+		//Secure:   true, //表示cookie需要用https才能发送给客户端
+		//HttpOnly: true, //表示通过JavaScript无法访问cookie
+		//HttpOnly: true确保cookie不会被客户端脚本访问，而Secure: true则确保cookie只能通过安全的HTTPS连接传输
+		MaxAge: 60,
+	})
 	sess.Save()
 
 	ctx.String(http.StatusOK, "登录成功")
 	return
 
 }
+func (u *UserHandler) Logout(ctx *gin.Context) {
+	sess := sessions.Default(ctx)
+	sess.Options(sessions.Options{
+		MaxAge: -1, //maxage配置成小于表示cookie过期,同时还表示redis中key和value的过期时间
+	})
+	sess.Save()
+	ctx.String(http.StatusOK, "退出登录成功")
+}
+func (u *UserHandler) Edit(ctx *gin.Context) {
+	type EditReq struct {
+		NickName string `json:"nikName"`
+		BirthDay string `json:"birth"`
+		Describe string `json:"describe"`
+	}
+	var req EditReq
+	if err := ctx.Bind(&req); err != nil {
+		ctx.String(http.StatusOK, "系统异常")
+		return
+	}
 
-func (u *UserHandler) Edit(ctx *gin.Context) {}
+	id, ok := sessions.Default(ctx).Get("userId").(int64)
+	if !ok {
+		ctx.String(http.StatusOK, "系统异常")
+		return
+	}
+
+	err := u.svc.Edit(ctx, domain.User{
+		Id:       id,
+		NickName: req.NickName,
+		BirthDay: req.BirthDay,
+		Describe: req.Describe,
+	})
+	if err != nil {
+		ctx.String(http.StatusOK, err.Error())
+		return
+	}
+
+}
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "这是profile页面")

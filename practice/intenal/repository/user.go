@@ -1,14 +1,14 @@
 package repository
 
 import (
-	"basic-go/practice/wetest/intenal/domain"
-	"basic-go/practice/wetest/intenal/repository/dao"
+	"basic-go/practice/intenal/domain"
+	"basic-go/practice/intenal/repository/dao"
 	"context"
 )
 
 var (
-	ErrDuplicateEmail = dao.ErrUserDuplicateEmail
-	ErrUserNotFound   = dao.ErrUserNotFound
+	ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
+	ErrUserNotFound       = dao.ErrUserNotFound
 )
 
 type UserRepository struct {
@@ -25,7 +25,6 @@ func (repo *UserRepository) Create(ctx context.Context, u domain.User) error {
 		Password: u.Password,
 	})
 }
-
 func (repo *UserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
 	u, err := repo.dao.FindByEmail(ctx, email)
 	if err != nil {
@@ -35,5 +34,4 @@ func (repo *UserRepository) FindByEmail(ctx context.Context, email string) (doma
 		Email:    u.Email,
 		Password: u.Password,
 	}, nil
-
 }

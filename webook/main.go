@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
+	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -57,9 +57,28 @@ func initServer() *gin.Engine {
 	}))
 
 	//session实现步骤1
-	//store是可以使用redis的
-	store := cookie.NewStore([]byte("secret"))   //存储的地方
-	server.Use(sessions.Sessions("ssid", store)) //mysession是cookie中的名字，store是值
+	//单实例可以使用memstore,将数据存储到内存中(常用于测试或开发环境中)
+	//多实例使用redistore
+	//第一个参数是authentication key（加密key） 第二个是encryption key（加密value）
+	//store := memstore.NewStore([]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"),
+	//	[]byte("pueKIkHTQsCIMa1N7mmzkTN6NmmHjIOP"))
+	//server.Use(sessions.Sessions("ssid", store))
+
+	store, err := redis.NewStore(16, //第一个参数表示最大空闲连接数量，实际中随便写，16,32都行
+		"tcp", "localhost:6379", "", //协议 登录地址和端口 密码
+		[]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"), //authentication key 指身份认证
+		[]byte("pueKIkHTQsCIMa1N7mmzkTN6NmmHjIOP")) //Encryption 是指数据加密
+	if err != nil {
+		panic(err)
+	}
+	server.Use(sessions.Sessions("ssid", store))
+
+	//根据面向接口编程 实现自定义sqlxstore
+	//mystore := &sqlx_store.Store{}
+	//server.Use(sessions.Sessions("ssid", mystore))
+
+	//store := cookie.NewStore([]byte("secret"))   //存储的地方，数据存储到cookie
+	//server.Use(sessions.Sessions("ssid", store)) //mysession是cookie中的名字，store是值
 	//session实现步骤3
 	//server.Use(middleware.NewLoginMiddlewareBuilder().Build())
 	//链式调用,最好的实现
