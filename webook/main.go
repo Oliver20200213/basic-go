@@ -41,7 +41,7 @@ func initServer() *gin.Engine {
 		//AllowOrigins: []string{"*"},  允许所有请求，不建议这种方式，之前前端是可以的现在前端在严格模式下不生效
 		//AllowMethods: []string{"POST","GET"}, //如果不写，默认则是都支持
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"x-jwt-token"}, //响应里面带上x-jwt-token 意思就是允许正式业务请求头部携带改head的值
+		ExposeHeaders:    []string{"X-Jwt-Token"}, //不加这个前端是拿不到x-jwt-token的，意思是我给你的你才能拿到
 		AllowCredentials: true,                    //是否允许你带cookie之类的东西
 
 		//可以根据origin进行动态判断(注销掉上面的AllowOrigins配置，二选一配置)
@@ -81,10 +81,10 @@ func initServer() *gin.Engine {
 	//server.Use(sessions.Sessions("ssid", store)) //mysession是cookie中的名字，store是值
 	//session实现步骤3
 	//server.Use(middleware.NewLoginMiddlewareBuilder().Build())
-	//链式调用,最好的实现
-	server.Use(middleware.NewLoginMiddlewareBuilder().
-		IgnorePaths("/users/login").
-		IgnorePaths("/users/signup").Build())
+	//链式调用,session最好的实现
+	//server.Use(middleware.NewLoginMiddlewareBuilder().
+	//	IgnorePaths("/users/login").
+	//	IgnorePaths("/users/signup").Build())
 
 	//版本1
 	////忽略sss路径
@@ -93,6 +93,12 @@ func initServer() *gin.Engine {
 	////又有一个server不能忽略sss这个路径,此时v1版本无法实现
 	//server1 := gin.Default()
 	//server1.Use(middleware.CheckLogin())
+
+	//使用JWT
+	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
+		IgnorePaths("/users/signup").
+		IgnorePaths("/users/login").
+		Build())
 
 	return server
 }

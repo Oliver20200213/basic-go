@@ -8,7 +8,9 @@ import (
 	regexp "github.com/dlclark/regexp2" //引入新的正则库替代标准库 这样引入可以使用regexp调用而不是regexp2
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	jwt "github.com/golang-jwt/jwt/v5"
 	"net/http"
+	"time"
 )
 
 // UserHandler 定义在它上面定义跟用户有关的路由
@@ -41,6 +43,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 // 另一种分组的方式,将分组放到外面
 func (u *UserHandler) RegisterRoutesV1(ug *gin.RouterGroup) {
 	ug.POST("/signup", u.SignUp)
+	//ug.POST("/login", u.Login)
 	ug.POST("/login", u.Login)
 	ug.POST("/edit", u.Edit)
 	ug.GET("/profile", u.Profile)
@@ -49,9 +52,10 @@ func (u *UserHandler) RegisterRoutesV1(ug *gin.RouterGroup) {
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
 	ug.POST("/signup", u.SignUp)
-	ug.POST("/login", u.Login)
+	//ug.POST("/login", u.Login)
+	ug.POST("/login", u.LoginJWT)
 	ug.POST("/edit", u.Edit)
-	ug.GET("/profile", u.Profile)
+	ug.GET("/profile", u.ProfileJWT)
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
@@ -114,6 +118,56 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	fmt.Printf("%v\n", req)
 	ctx.String(http.StatusOK, "注册成功  ")
 	return
+}
+
+func (u *UserHandler) LoginJWT(ctx *gin.Context) {
+	type LoginReq struct {
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+	var req LoginReq
+	if err := ctx.Bind(&req); err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+	}
+	user, err := u.svc.Login(ctx, req.Email, req.Password)
+	if errors.Is(err, service.ErrInvalidUserOrPassword) {
+		ctx.String(http.StatusOK, "用户或密码错误")
+		return
+	}
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+
+	//使用jwt设置登录态
+	////生成一个JWT token（不带数据的）
+	//token := jwt.New(jwt.SigningMethodHS512)
+
+	//如何在JWT token中携带数据，比如要带userId
+	claims := UserClaims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			//配置过期时间
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute)),
+		},
+		Uid: user.Id,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+
+	//token.SigningString() 不使用key直接生成token
+	//更安全使用key生成token
+	tokenStr, err := token.SignedString([]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"))
+	if err != nil {
+		ctx.String(http.StatusInternalServerError, "系统错误")
+		return
+	}
+
+	//将token放到header中
+	ctx.Header("x-jwt-token", tokenStr) //将token放到header中
+	fmt.Println(tokenStr)
+	fmt.Println(user)
+	ctx.String(http.StatusOK, "登录成功")
+	return
+
 }
 
 func (u *UserHandler) Login(ctx *gin.Context) {
@@ -195,7 +249,45 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 
 }
 
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	//c, ok := ctx.Get("claims")
+	////你可以断定，必然有claims
+	//if !ok {
+	//	//可以考虑监控住这里
+	//	ctx.String(http.StatusOK, "系统错误")
+	//	return
+	//}
+
+	//或者忽略这里的ok，直接用下面的断言来检测，如果claims值是nil那么断言会是false
+	c, _ := ctx.Get("claims")
+	//你可以断定，必然有claims
+	//if !ok {
+	//	//可以考虑监控住这里
+	//	ctx.String(http.StatusOK, "系统错误")
+	//	return
+	//}
+	//ok代表是不是*UserClaims
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		//可以考虑监控住这里
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	println(claims.Uid)
+	//补充剩下的代码
+	ctx.String(http.StatusOK, "这是profile页面")
+
+}
+
 func (u *UserHandler) Profile(ctx *gin.Context) {
 	ctx.String(http.StatusOK, "这是profile页面")
+	//println("xxxxxx")
 	return
+}
+
+type UserClaims struct {
+	jwt.RegisteredClaims
+	//声明自己要放放进token里面的数据
+	Uid int64
+	//自己可以随便加，但是最好不要加敏感数据例如password 权限之类的信息
 }
