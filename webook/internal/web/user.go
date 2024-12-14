@@ -135,7 +135,7 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 		return
 	}
 	if err != nil {
-		ctx.String(http.StatusOK, "系统错误")
+		ctx.String(http.StatusOK, "系统异常")
 		return
 	}
 

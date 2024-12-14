@@ -6,11 +6,13 @@ import (
 	"basic-go/webook/internal/service"
 	"basic-go/webook/internal/web"
 	"basic-go/webook/internal/web/middleware"
+	"basic-go/webook/pkg/ginx/middlewares/ratelimit"
 	"fmt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
+	redis2 "github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"strings"
@@ -35,6 +37,13 @@ func initServer() *gin.Engine {
 	server.Use(func(ctx *gin.Context) {
 		fmt.Println("这是第二个middleware")
 	})
+
+	//引入redis限流
+	redisClient := redis2.NewClient(&redis2.Options{
+		Addr: "locahost:6379",
+	})
+	//1分钟中内只能允许100个请求
+	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
 
 	server.Use(cors.New(cors.Config{ //use方法注册middleware，use作用于全部路由
 		//AllowOrigins: []string{"http://127.0.0.1:3000"}, //允许的访问的源
@@ -66,7 +75,7 @@ func initServer() *gin.Engine {
 
 	store, err := redis.NewStore(16, //第一个参数表示最大空闲连接数量，实际中随便写，16,32都行
 		"tcp", "localhost:6379", "", //协议 登录地址和端口 密码
-		[]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"), //authentication key 指身份认证
+		[]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"), //authentication key 指身份认证  32位或64位的key都可以
 		[]byte("pueKIkHTQsCIMa1N7mmzkTN6NmmHjIOP")) //Encryption 是指数据加密
 	if err != nil {
 		panic(err)
@@ -80,19 +89,19 @@ func initServer() *gin.Engine {
 	//store := cookie.NewStore([]byte("secret"))   //存储的地方，数据存储到cookie
 	//server.Use(sessions.Sessions("ssid", store)) //mysession是cookie中的名字，store是值
 	//session实现步骤3
-	//server.Use(middleware.NewLoginMiddlewareBuilder().Build())
+	//server.Use(middlewares.NewLoginMiddlewareBuilder().Build())
 	//链式调用,session最好的实现
-	//server.Use(middleware.NewLoginMiddlewareBuilder().
+	//server.Use(middlewares.NewLoginMiddlewareBuilder().
 	//	IgnorePaths("/users/login").
 	//	IgnorePaths("/users/signup").Build())
 
 	//版本1
 	////忽略sss路径
-	//middleware.IgnorePaths = []string{"sss"}
-	//server.Use(middleware.CheckLogin())
+	//middlewares.IgnorePaths = []string{"sss"}
+	//server.Use(middlewares.CheckLogin())
 	////又有一个server不能忽略sss这个路径,此时v1版本无法实现
 	//server1 := gin.Default()
-	//server1.Use(middleware.CheckLogin())
+	//server1.Use(middlewares.CheckLogin())
 
 	//使用JWT
 	server.Use(middleware.NewLoginJWTMiddlewareBuilder().

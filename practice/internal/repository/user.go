@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"basic-go/practice/intenal/domain"
-	"basic-go/practice/intenal/repository/dao"
+	"basic-go/practice/internal/domain"
+	"basic-go/practice/internal/repository/dao"
 	"context"
 )
 
@@ -24,14 +24,18 @@ func (repo *UserRepository) Create(ctx context.Context, u domain.User) error {
 		Email:    u.Email,
 		Password: u.Password,
 	})
+
 }
+
 func (repo *UserRepository) FindByEmail(ctx context.Context, email string) (domain.User, error) {
 	u, err := repo.dao.FindByEmail(ctx, email)
 	if err != nil {
 		return domain.User{}, err
 	}
 	return domain.User{
+		Id:       u.Id,
 		Email:    u.Email,
 		Password: u.Password,
 	}, nil
+
 }

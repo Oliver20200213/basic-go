@@ -14,11 +14,11 @@ var (
 )
 
 type User struct {
-	Id       int64  `gorm:"primaryKey,autoIncrement"`
-	Email    string `gorm:"unique"`
+	Id       int64  `gorm:"primary_key;AUTO_INCREMENT"`
+	Email    string `gorm:"nique"`
 	Password string
-	Ctime    int64
 	Utime    int64
+	Ctime    int64
 }
 
 type UserDao struct {
@@ -31,12 +31,13 @@ func NewUserDao(db *gorm.DB) *UserDao {
 
 func (dao *UserDao) Insert(ctx context.Context, u User) error {
 	now := time.Now().UnixMilli()
-	u.Ctime = now
 	u.Utime = now
+	u.Ctime = now
 	err := dao.db.WithContext(ctx).Create(&u).Error
+
 	if mysqlErr, ok := err.(*mysql.MySQLError); ok {
-		const uniqueErrConflictsNo uint16 = 1062
-		if mysqlErr.Number == uniqueErrConflictsNo {
+		const uniqueConflictsError = 1062
+		if mysqlErr.Number == uniqueConflictsError {
 			return ErrUserDuplicateEmail
 		}
 	}
@@ -46,8 +47,6 @@ func (dao *UserDao) Insert(ctx context.Context, u User) error {
 func (dao *UserDao) FindByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("email=?", email).First(&u).Error
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return User{}, ErrUserNotFound
-	}
 	return u, err
+
 }
