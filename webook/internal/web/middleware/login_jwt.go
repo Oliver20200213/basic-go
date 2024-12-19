@@ -20,11 +20,13 @@ func NewLoginJWTMiddlewareBuilder() *LoginJWTMiddlewareBuilder {
 	return &LoginJWTMiddlewareBuilder{}
 }
 
+// IgnorePaths 中间方法，用于构建部分
 func (l *LoginJWTMiddlewareBuilder) IgnorePaths(path string) *LoginJWTMiddlewareBuilder {
 	l.paths = append(l.paths, path)
 	return l
 }
 
+// Build终结方法，返回你最终希望的数据
 func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		//不需要的校验

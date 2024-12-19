@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webook-mysql
+spec:
+  selector:
+    app: webook-mysql
+  ports:
+    - protocol: TCP
+      # 外部访问的端口，如果使用了nodePort，外部就无法通过3309访问，但是内部可以访问
+      port: 3309
+      # 对应deployment中container的端口
+      targetPort: 3306
+      # 配置nodePort之后内部和外部就需要使用nodePort来访问
+      nodePort: 30001  #nodePort的范围是30000-32767
+      #可以配置多个
+#    - protocol: TCP
+#      port: 30001
+#  type: LoadBalancer
+  type: NodePort
+  

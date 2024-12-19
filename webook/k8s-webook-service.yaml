@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webook
+spec:
+  #将当前service当做负载均衡器，也就是将后面的多个pod当做一个
+  type: LoadBalancer
+  # 对应的是deployment中名字叫做webook的POD
+  selector:
+    app: webook
+  ports:
+    # 协议
+    - protocol: TCP
+      name: http
+      # 对外的端口
+      port: 80
+      # pod的端口,需要和deployment中container的端口保持一致
+      targetPort: 8080
+
+
+
+  

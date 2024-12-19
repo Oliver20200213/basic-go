@@ -1,0 +1,24 @@
+#pvc => persistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+#这个是指mysql要用的volume
+metadata:
+  name: webook-mysql-claim
+spec:
+  #这个可以随便起名字,但是需要和pv中的storageClassName对应起来
+  storageClassName: manual
+  accessModes:
+    #只能一个POD读写，这里的一个就是一个POD
+    - ReadWriteOnce
+#    #多个读，一个写
+#    - ReadOnlyMany
+#    #多个读写
+#    - ReadWriteMany
+  #需要的资源
+  resources:
+    requests:
+      # 1Gi 就是1GB的意思
+      storage: 1Gi
+
+
+  

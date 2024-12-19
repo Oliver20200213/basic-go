@@ -15,15 +15,23 @@ import (
 	redis2 "github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	"net/http"
 	"strings"
 	"time"
 )
 
 func main() {
-	db := initDB()
-	server := initServer()
-	u := initUser(db)
-	u.RegisterRoutes(server)
+	//db := initDB()
+	//server := initServer()
+	//u := initUser(db)
+	//u.RegisterRoutes(server)
+
+	server := gin.Default()
+	server.GET("/hello", func(ctx *gin.Context) {
+		ctx.String(http.StatusOK, "这是hello Go页面！")
+	})
+
+	//server.RunTLS()  https
 	server.Run(":8080")
 
 }

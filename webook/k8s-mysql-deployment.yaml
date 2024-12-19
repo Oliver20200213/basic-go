@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webook-mysql
+  labels:
+    app: webook-mysql
+spec:
+  replicas: 1
+  #用于选择对应标签的POD
+  selector:
+    matchLabels:
+      app: webook-mysql
+  #POD的模板，用于定义要创建POD的规格
+  template:
+    #用于配置POD先关的信息
+    metadata:
+      # 指定POD的名字
+      name: webook-mysql
+      # 指定POD的标签
+      labels:
+        app: webook-mysql
+    #用于配置POD中运行容器相关的信息
+    spec:
+      containers:
+        # 容器名字
+        - name: webook-mysql
+          image: mysql:8.0
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: root
+          #容器镜像拉取策略
+          imagePullPolicy: IfNotPresent
+          #container中挂载的volume
+          volumeMounts:
+            # 挂载到容器中的路径./var/lib/mysql默认mysql的数据存储路径
+            - mountPath: /var/lib/mysql
+              #这里确定要使用的volume卷的名称，需要和下面volumes中的对应
+              name: mysql-storage
+          # 容器暴露的端口
+          ports:
+            - containerPort: 3306
+              protocol: TCP
+#         另一个容器
+#        - name: webook-hadoop
+      restartPolicy: Always
+      #整个spec中的volume
+      volumes:
+        - name: mysql-storage
+          # mysql-storage这个volume究竟是什么东西，就需要靠persistentVolumeClaim来声明volume的规格信息
+          persistentVolumeClaim:
+            # 用来与pvc关联
+            claimName: webook-mysql-claim
+        #另一个volume
+#        - name: hadoop-storage
+#          persistentVolumeClaim:
+#            claimName: webook-hadoop-claim
+      

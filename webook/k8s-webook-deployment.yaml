@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webook
+#spec  specification规格说明
+spec:
+  #副本数量
+  replicas: 3
+  # 筛选器
+  selector:
+    matchLabels:
+      app: webook
+# template 模板 描述的你的POD是什么样的
+  template:
+    metadata:
+      # labels需要和上面的app对的上
+      labels:
+        app: webook
+      # POD的具体信息
+    spec:
+      containers:
+        - name: webook
+          image: dakunkun/webook:v0.0.1
+          ports:
+            - containerPort: 8080
