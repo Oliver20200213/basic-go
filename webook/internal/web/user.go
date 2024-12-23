@@ -42,7 +42,7 @@ func NewUserHandler(svc *service.UserService) *UserHandler {
 
 // 另一种分组的方式,将分组放到外面
 func (u *UserHandler) RegisterRoutesV1(ug *gin.RouterGroup) {
-	ug.POST("/signup", u.SignUp)
+	ug.POST("/signup.lua", u.SignUp)
 	//ug.POST("/login", u.Login)
 	ug.POST("/login", u.Login)
 	ug.POST("/edit", u.Edit)
@@ -51,7 +51,7 @@ func (u *UserHandler) RegisterRoutesV1(ug *gin.RouterGroup) {
 
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
-	ug.POST("/signup", u.SignUp)
+	ug.POST("/signup.lua", u.SignUp)
 	//ug.POST("/login", u.Login)
 	ug.POST("/login", u.LoginJWT)
 	ug.POST("/edit", u.Edit)

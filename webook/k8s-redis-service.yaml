@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: webook-redis
+spec:
+  selector:
+    app: webook-redis
+  ports:
+    - protocol: TCP
+      #service本身的的端口，k8s集群之内访问的端口
+      port: 6379
+      #指的是pod上暴露的端口
+      targetPort: 6379
+      #指的是k8s集群之外访问的端口，集群内部也可以用这个端口得加上ip
+      nodePort: 30003
+  type: NodePort
+  

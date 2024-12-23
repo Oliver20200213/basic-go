@@ -52,7 +52,7 @@ func initServer() *gin.Engine {
 
 	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePath("/users/login").
-		IgnorePath("/users/signup").Build())
+		IgnorePath("/users/signup.lua").Build())
 	return server
 }
 func initUser(db *gorm.DB) *web.UserHandler {

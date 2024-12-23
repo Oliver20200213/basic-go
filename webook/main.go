@@ -1,6 +1,7 @@
 package main
 
 import (
+	"basic-go/webook/config"
 	"basic-go/webook/internal/repository"
 	"basic-go/webook/internal/repository/dao"
 	"basic-go/webook/internal/service"
@@ -9,27 +10,24 @@ import (
 	"basic-go/webook/pkg/ginx/middlewares/ratelimit"
 	"fmt"
 	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/redis"
 	"github.com/gin-gonic/gin"
 	redis2 "github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
-	"net/http"
 	"strings"
 	"time"
 )
 
 func main() {
-	//db := initDB()
-	//server := initServer()
-	//u := initUser(db)
-	//u.RegisterRoutes(server)
+	db := initDB()
+	server := initServer()
+	u := initUser(db)
+	u.RegisterRoutes(server)
 
-	server := gin.Default()
-	server.GET("/hello", func(ctx *gin.Context) {
-		ctx.String(http.StatusOK, "这是hello Go页面！")
-	})
+	//server := gin.Default()
+	//server.GET("/hello", func(ctx *gin.Context) {
+	//	ctx.String(http.StatusOK, "这是hello Go页面！")
+	//})
 
 	//server.RunTLS()  https
 	server.Run(":8080")
@@ -48,7 +46,8 @@ func initServer() *gin.Engine {
 
 	//引入redis限流
 	redisClient := redis2.NewClient(&redis2.Options{
-		Addr: "locahost:6379",
+		//对应k8s-redis-service中metadata的name以及port
+		Addr: config.Config.Redis.Addr,
 	})
 	//1分钟中内只能允许100个请求
 	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
@@ -81,14 +80,14 @@ func initServer() *gin.Engine {
 	//	[]byte("pueKIkHTQsCIMa1N7mmzkTN6NmmHjIOP"))
 	//server.Use(sessions.Sessions("ssid", store))
 
-	store, err := redis.NewStore(16, //第一个参数表示最大空闲连接数量，实际中随便写，16,32都行
-		"tcp", "localhost:6379", "", //协议 登录地址和端口 密码
-		[]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"), //authentication key 指身份认证  32位或64位的key都可以
-		[]byte("pueKIkHTQsCIMa1N7mmzkTN6NmmHjIOP")) //Encryption 是指数据加密
-	if err != nil {
-		panic(err)
-	}
-	server.Use(sessions.Sessions("ssid", store))
+	//store, err := redis.NewStore(16, //第一个参数表示最大空闲连接数量，实际中随便写，16,32都行
+	//	"tcp", "localhost:6379", "", //协议 登录地址和端口 密码
+	//	[]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"), //authentication key 指身份认证  32位或64位的key都可以
+	//	[]byte("pueKIkHTQsCIMa1N7mmzkTN6NmmHjIOP")) //Encryption 是指数据加密
+	//if err != nil {
+	//	panic(err)
+	//}
+	//server.Use(sessions.Sessions("ssid", store))
 
 	//根据面向接口编程 实现自定义sqlxstore
 	//mystore := &sqlx_store.Store{}
@@ -101,7 +100,7 @@ func initServer() *gin.Engine {
 	//链式调用,session最好的实现
 	//server.Use(middlewares.NewLoginMiddlewareBuilder().
 	//	IgnorePaths("/users/login").
-	//	IgnorePaths("/users/signup").Build())
+	//	IgnorePaths("/users/signup.lua").Build())
 
 	//版本1
 	////忽略sss路径
@@ -113,7 +112,7 @@ func initServer() *gin.Engine {
 
 	//使用JWT
 	server.Use(middleware.NewLoginJWTMiddlewareBuilder().
-		IgnorePaths("/users/signup").
+		IgnorePaths("/users/signup.lua").
 		IgnorePaths("/users/login").
 		Build())
 
@@ -129,7 +128,10 @@ func initUser(db *gorm.DB) *web.UserHandler {
 }
 
 func initDB() *gorm.DB {
-	db, err := gorm.Open(mysql.Open("root:root@tcp(127.0.0.1:13316)/webook"))
+	//db, err := gorm.Open(mysql.Open("root:root@tcp(127.0.0.1:13316)/webook"))
+	//连接到k8s的mysql，需要使用k8s-mysql-service.yaml中metadata的name以及port来连接
+	//db, err := gorm.Open(mysql.Open("root:root@tcp(webook-mysql:3309)/webook"))
+	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
 	if err != nil {
 		//只会再初始化过程中 panic
 		//panic相当于证个goroutine结束

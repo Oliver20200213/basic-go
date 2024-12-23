@@ -7,6 +7,7 @@ metadata:
 spec:
   #这个可以随便起名字,但是需要和pv中的storageClassName对应起来
   storageClassName: manual
+  #这里的accessMode是说我这个pvc需要怎么访问
   accessModes:
     #只能一个POD读写，这里的一个就是一个POD
     - ReadWriteOnce

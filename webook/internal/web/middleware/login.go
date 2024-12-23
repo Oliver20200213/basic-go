@@ -31,7 +31,7 @@ func (l *LoginMiddlewareBuilder) Build() gin.HandlerFunc {
 		}
 		//不需要的校验
 		//if ctx.Request.URL.Path == "/users/login" ||
-		//	ctx.Request.URL.Path == "/users/signup" {
+		//	ctx.Request.URL.Path == "/users/signup.lua" {
 		//	return
 		//}
 		sess := sessions.Default(ctx)
@@ -99,7 +99,7 @@ func (l *LoginMiddlewareBuilder) BuildV1() gin.HandlerFunc {
 		}
 		//不需要的校验
 		//if ctx.Request.URL.Path == "/users/login" ||
-		//	ctx.Request.URL.Path == "/users/signup" {
+		//	ctx.Request.URL.Path == "/users/signup.lua" {
 		//	return
 		//}
 		sess := sessions.Default(ctx)

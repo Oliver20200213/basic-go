@@ -11,8 +11,19 @@ spec:
   #容量
   capacity:
     storage: 1Gi
+  #这里的accessModes是说我这个pv只是什么访问模式
   accessModes:
     - ReadWriteOnce
   hostPath:
     #宿主机存储的目录
     path: "/mnt/data"
+
+#路径查看方式：需要运行一个容器才能查看：
+# docker run --pid=host --privileged -it --rm justincormack/nsenter1
+#windows下/mnt/data的实际路径
+#/containers/services/01-docker/rootfs/mnt/data
+#mac下/mnt/data的实际路径
+#/containers/services/docker/rootfs/mnt/data
+#实际该路径并不是宿主机的本地目录，实际是宿主机下运行的虚拟机的目录
+#也就是说如果重启k8s集群,也就是重启虚拟机，该数据会丢失
+#宿主机----->虚拟机---->docker

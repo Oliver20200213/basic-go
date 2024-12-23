@@ -59,7 +59,7 @@ const LoginForm: React.FC = () => {
             <Link href={"/users/login_wechat"} >
                 &nbsp;&nbsp;微信扫码登录
             </Link>
-            <Link href={"/users/signup"} >
+            <Link href={"/users/signup.lua"} >
                 &nbsp;&nbsp;注册
             </Link>
         </Form.Item>

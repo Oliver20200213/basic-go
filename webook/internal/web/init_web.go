@@ -15,7 +15,7 @@ func RegisterRoutes() *gin.Engine {
 
 func RegisterUserRoutes(server *gin.Engine) {
 	u := &UserHandler{}
-	server.POST("/users/signup", u.SignUp)
+	server.POST("/users/signup.lua", u.SignUp)
 	//rest风格
 	//server.PUT("/user", func(ctx *gin.Context) {
 	//
