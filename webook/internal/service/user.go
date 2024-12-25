@@ -14,6 +14,7 @@ var ErrInvalidUserID = errors.New("无效的用户ID")
 
 type UserService struct {
 	repo *repository.UserRepository
+	//redis *redis.Client //错误实践 不是很严谨的方式
 }
 
 func NewUserService(repo *repository.UserRepository) *UserService {
@@ -34,6 +35,7 @@ func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
 	u.Password = string(hash)
 	//然后就是存起来
 	return svc.repo.Create(ctx, u)
+
 }
 
 func (svc *UserService) Login(ctx context.Context, email, password string) (domain.User, error) {
@@ -64,4 +66,24 @@ func (svc *UserService) Edit(ctx context.Context, u domain.User) error {
 	}
 
 	return nil
+}
+
+func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+	//错误实践
+	////第一个念头是
+	//val, err := svc.redis.Get(ctx, fmt.Sprintf("user:info:%d", id)).Result()
+	//if err != nil {
+	//	return domain.User{}, err
+	//}
+	//var u domain.User
+	//err = json.Unmarshal([]byte(val), &u)
+	//if err != nil {
+	//	return u, err
+	//}
+	//接下来，就是从数据库中查找
+
+	//最佳实践
+	u, err := svc.repo.FindById(ctx, id)
+	return u, err
+
 }
