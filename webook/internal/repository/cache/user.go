@@ -43,9 +43,9 @@ type UserCache struct {
 
 // NewUserCache
 // 面向接口编程和依赖注入的三板斧：
-// A用到了B，B一定是接口
-// A用到了B，B一定是A的字段
-// A用到了B，A绝对不初始化B，而是外面注入
+// A用到了B，B一定是接口  => 这个是保证面向接口
+// A用到了B，B一定是A的字段  =>  为了规避包变量、包方法，这个了都非常缺乏扩展性
+// A用到了B，A绝对不初始化B，而是外面注入 => 保持依赖注入(DI,Dependency Injection)和依赖反转(IOC)
 func NewUserCache(client redis.Cmdable) *UserCache {
 	//func NewUserCache(client redis.Cmdable,expiration time.Duration) *UserCache {
 	return &UserCache{
@@ -69,6 +69,7 @@ func (cache *UserCache) Get(ctx context.Context, id int64) (domain.User, error) 
 	}
 	var u domain.User
 	err = json.Unmarshal(val, &u)
+	//fmt.Println("cache user", u)
 	return u, err
 
 }
