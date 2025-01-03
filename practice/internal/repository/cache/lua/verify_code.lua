@@ -19,6 +19,6 @@ elseif expectedCode == code then
 else
     -- 输错了
     -- 可验证次数减一
-    redis.call("decr",cntKey)
+    redis.call("decr",cntKey, -1)
     return -2
 end

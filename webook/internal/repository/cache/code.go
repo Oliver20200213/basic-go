@@ -11,7 +11,7 @@ import (
 var (
 	ErrCodeSendTooMany        = errors.New("发送验证码太频繁")
 	ErrCodeVerifyTooManyTimes = errors.New("验证次数太多")
-	ErrUnknowForCode          = errors.New("我也不知道发生了什么，反正是跟code有关")
+	ErrUnknownForCode         = errors.New("我也不知道发生了什么，反正是跟code有关")
 )
 
 // 编译器会在编译的时候，把set_code的代码放进来这个luaSetCode变量里
@@ -71,15 +71,12 @@ func (c *CodeCache) Verify(ctx context.Context, biz, phone, inputCode string) (b
 	case -2:
 		return false, nil
 	default:
-		return false, ErrUnknowForCode
+		return false, ErrUnknownForCode
 	}
-
 }
 
 //可以只返回error
-//func (c *CodeCache) Verify(ctx context.Context, biz, phone, code string) error {
-//
-//}
+//func (c *CodeCache) Verify(ctx context.Context, biz, phone, code string) error { }
 
 // LocalCodeCache 假如要切换到本地内存 就需要把lua脚本的逻辑在这里在写一遍
 type LocalCodeCache struct {

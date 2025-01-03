@@ -45,7 +45,7 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/users/signup.lua", u.SignUp)
 	ug.POST("/users/login", u.LoginJWT)
 	ug.POST("/users/edit", u.Edit)
-	ug.POST("/users/profile", u.Profile)
+	ug.POST("/users/profile", u.ProfileJWT)
 }
 
 func (u *UserHandler) SignUp(ctx *gin.Context) {
@@ -140,5 +140,23 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	return
 
 }
-func (u *UserHandler) Edit(ctx *gin.Context)    {}
-func (u *UserHandler) Profile(ctx *gin.Context) {}
+func (u *UserHandler) Edit(ctx *gin.Context) {}
+func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
+	// 获取客户请求头中的claim（jwt中间件），
+	c, _ := ctx.Get("claims")
+	// 通过断言检测下claims是否正常
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		// 可以考虑监控这里，如果断言不通过说明有人搞事修改了claims
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	println(claims.Uid)
+
+	user, err := u.svc.Profile(ctx, claims.Uid)
+	if err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	ctx.String(http.StatusOK, "用户信息：%s", user.Email)
+}

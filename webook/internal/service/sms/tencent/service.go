@@ -10,16 +10,16 @@ import (
 )
 
 type Service struct {
-	appId   *string
-	sigName *string
-	client  *sms.Client
+	appId    *string
+	signName *string
+	client   *sms.Client
 }
 
-func NewService(client *sms.Client, appId string, sigName string) *Service {
+func NewService(client *sms.Client, appId string, signName string) *Service {
 	return &Service{
-		appId:   ekit.ToPtr[string](appId),
-		sigName: ekit.ToPtr[string](sigName),
-		client:  client,
+		appId:    ekit.ToPtr[string](appId),
+		signName: ekit.ToPtr[string](signName),
+		client:   client,
 	}
 }
 
@@ -33,12 +33,15 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	//	return errors.New("no numbers provided")
 	//}
 	req := sms.NewSendSmsRequest()
-	req.SmsSdkAppId = s.appId
-	req.SignName = s.sigName
-	req.TemplateId = ekit.ToPtr[string](tplId)
+	req.SmsSdkAppId = s.appId          //短信SdkAppId在 [短信控制台] 添加应用后生成的实际SdkAppId
+	req.SignName = s.signName          //短信签名
+	req.TemplateId = ekit.ToPtr(tplId) //短信模板的id
 	//需要将numbers转成切片
-	req.PhoneNumberSet = s.toStringPtrSlice(numbers)
-	req.TemplateParamSet = s.toStringPtrSlice(args)
+	// 示例如：+8613711112222， 其中前面有一个+号 ，86为国家码，13711112222为手机号，最多不要超过200个手机号*/
+	req.PhoneNumberSet = s.toStringPtrSlice(numbers) //下发手机号码
+	req.TemplateParamSet = s.toStringPtrSlice(args)  // 用于设置短信模板中的变量参数,
+	// 例如：短信模板是：验证码是：${code}，${code}是一个变量，表示验证码
+	// args = []string{"1234",} 这里${code}就是1234
 	resp, err := s.client.SendSms(req)
 	if err != nil {
 		return err
@@ -56,7 +59,7 @@ func (s *Service) SendV1(ctx context.Context, tplId string, args []mysms.NamedAr
 
 	req := sms.NewSendSmsRequest()
 	req.SmsSdkAppId = s.appId
-	req.SignName = s.sigName
+	req.SignName = s.signName
 	req.TemplateId = ekit.ToPtr[string](tplId)
 	req.PhoneNumberSet = s.toStringPtrSlice(numbers)
 	req.TemplateParamSet = slice.Map[mysms.NamedArg, *string](args, func(idx int, src mysms.NamedArg) *string {
@@ -90,5 +93,4 @@ func Map[Src any, Dst any](src []Src, m func(idx int, src Src) Dst) []Dst {
 	}
 	return dst
 }
-
 */

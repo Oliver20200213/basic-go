@@ -88,7 +88,7 @@ func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, e
 		err = r.cache.Set(ctx, u)
 		if err != nil {
 			// 这里该怎么办？
-			// 打日志做监控即可
+			// 写入日志做监控即可
 			log.Println(err)
 		}
 	}()

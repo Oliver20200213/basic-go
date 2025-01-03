@@ -1,5 +1,4 @@
 -- 你的验证码在Redis上的key
--- 例如 c.client.Eval(ctx, luaSetCode, []string{c.key(biz, phone)}, code).Int()
 -- KEYS[1]第一个参数是c.key(biz,phone)
 -- phone_code:login:155xxxxxxxx
 local key = KEYS[1]
@@ -34,8 +33,3 @@ end
 
 
 
-
--- 补充说明；
--- KEYS[1] 用于访问传递给脚本的第一个键，而 ARGV[1] 用于访问传递给脚本的第一个附加参数
--- c.client.Eval(ctx, luaSetCode, []string{"myKey"}, "myValue").Int()
--- 在这里，"myKey" 是通过 KEYS[1] 传递的键，而 "myValue" 是通过 ARGV[1] 传递的附加参数。

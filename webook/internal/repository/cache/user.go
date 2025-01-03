@@ -62,7 +62,7 @@ func NewUserCache(client redis.Cmdable) *UserCache {
 // func (cache *UserCache) Get(ctx context.Context, id int64,expiration time.Duration) (domain.User, error) {
 func (cache *UserCache) Get(ctx context.Context, id int64) (domain.User, error) {
 	key := cache.key(id)
-	//数据不存在，err= redis.Nil
+	//数据不存在，err != redis.Nil
 	val, err := cache.client.Get(ctx, key).Bytes()
 	if err != nil {
 		return domain.User{}, err

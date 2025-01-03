@@ -50,7 +50,8 @@ func (s *Service) SendSms(ctx context.Context, signName, tplCode string, phone [
 			return err
 		}
 		if *smsResponse.Body.Code == "OK" {
-			fmt.Println(phoneSignle, string(bcode))
+			//发送成功！
+			fmt.Printf("发送手机号: %s 的短信成功,验证码为【%s】\n", phoneSignle, code)
 		}
 		return errors.New(*smsResponse.Body.Message)
 	}

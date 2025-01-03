@@ -1,13 +1,17 @@
 package main
 
 import (
+	"basic-go/practice/config"
 	"basic-go/practice/internal/repository"
+	"basic-go/practice/internal/repository/cache"
 	"basic-go/practice/internal/repository/dao"
 	"basic-go/practice/internal/service"
 	"basic-go/practice/internal/web"
 	"basic-go/practice/internal/web/middleware"
+	"basic-go/practice/pkg/ginx/middlewares"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"strings"
@@ -17,7 +21,8 @@ import (
 func main() {
 	db := initDB()
 	server := initServer()
-	u := initUser(db)
+	cache := initCache()
+	u := initUser(db, cache)
 	u.RegisterRoutes(server)
 	server.Run(":8090")
 
@@ -38,6 +43,13 @@ func initDB() *gorm.DB {
 
 func initServer() *gin.Engine {
 	server := gin.Default()
+
+	// 引入redis限流
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+	server.Use(ratelimit.NewBuilder(redisClient, time.Minute, 100).Build())
+
 	server.Use(cors.New(cors.Config{
 		AllowHeaders:  []string{"Content-Type", "Authorization"},
 		ExposeHeaders: []string{"X-Jwt-Token"},
@@ -55,10 +67,18 @@ func initServer() *gin.Engine {
 		IgnorePath("/users/signup.lua").Build())
 	return server
 }
-func initUser(db *gorm.DB) *web.UserHandler {
+
+func initUser(db *gorm.DB, cache *cache.UserCache) *web.UserHandler {
 	ud := dao.NewUserDao(db)
-	repo := repository.NewUserRepository(ud)
+	repo := repository.NewUserRepository(ud, cache)
 	svc := service.NewUserService(repo)
 	u := web.NewUserHandler(svc)
 	return u
+}
+
+func initCache() *cache.UserCache {
+	redisClient := redis.NewClient(&redis.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+	return cache.NewUserCache(redisClient)
 }

@@ -21,13 +21,12 @@ func TestService_Send(t *testing.T) {
 	}
 
 	c, err := sms.NewClient(common.NewCredential(secretId, secretKey),
-		"ap-beijing",
-		profile.NewClientProfile())
+		"ap-beijing", profile.NewClientProfile())
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s := NewService(c, "appId", "大坤坤")
+	s := NewService(c, "1400957223", "中年大叔老冯公众号")
 	testCase := []struct {
 		name    string
 		tplId   string
@@ -37,16 +36,16 @@ func TestService_Send(t *testing.T) {
 	}{
 		{
 			name:    "发送验证码",
-			tplId:   "",
-			params:  []string{"123456"},
-			numbers: []string{"15550923381"},
+			tplId:   "2343627",
+			params:  []string{"123456", "15"},
+			numbers: []string{"15562666678"},
 		},
 	}
-
 	for _, tc := range testCase {
 		t.Run(tc.name, func(t *testing.T) {
-			err := s.Send(context.Background(), tc.tplId, tc.params, tc.numbers...)
-			assert.Equal(t, tc.wantErr, err)
+			er := s.Send(context.Background(), tc.tplId, tc.params, tc.numbers...)
+			assert.Equal(t, tc.wantErr, er)
 		})
 	}
+
 }
