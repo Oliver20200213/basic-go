@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"math/rand"
+	"time"
 )
 
 const codeTplId = "1877556"
@@ -72,7 +73,7 @@ func (svc *CodeService) Verify(ctx context.Context, biz string,
 
 func (svc *CodeService) generateCode() string {
 	// 六位数，num 在0,999990之间，包含0和999999
-	num := rand.Intn(1000000)
+	num := rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(1000000)
 	// 不够六位的加上前导0
 	// 000001
 	return fmt.Sprintf("%6d", num)
