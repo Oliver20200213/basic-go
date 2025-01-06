@@ -11,8 +11,8 @@ import (
 )
 
 var (
-	ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
-	ErrUserNotFound       = dao.ErrUserNotFund
+	ErrUserDuplicate = dao.ErrUserDuplicate
+	ErrUserNotFound  = dao.ErrUserNotFund
 )
 
 type UserRepository struct {

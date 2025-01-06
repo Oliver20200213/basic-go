@@ -4,15 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"fmt"
 	"github.com/go-sql-driver/mysql"
 	"gorm.io/gorm"
 	"time"
 )
 
 var (
-	ErrUserDuplicateEmail = errors.New("邮箱重复")
-	ErrUserNotFund        = gorm.ErrRecordNotFound
+	ErrUserDuplicate = errors.New("邮箱重复")
+	ErrUserNotFund   = gorm.ErrRecordNotFound
 )
 
 type UserDAO struct {
@@ -34,13 +33,13 @@ func (dao *UserDAO) Insert(ctx context.Context, u User) error {
 	//查询email=123@qq.com使用FOR UPDATE语句对这些记录进行锁定。
 	//这种锁定通常用于确保在多用户环境中，其他事务不能修改或删除这些记录，直到当前事务结束
 	//如果在可重复读的隔离级别下，没有改邮箱则会加上间隙锁，如果存在则是加行锁
-	fmt.Println("uuuuuuuuuu", u)
 	err := dao.db.WithContext(ctx).Create(&u).Error
 	if mysqlErr, ok := err.(*mysql.MySQLError); ok {
 		const uniqueConflictsErrNo uint16 = 1062
+		// 邮箱冲突 or 手机号码冲突
 		if mysqlErr.Number == uniqueConflictsErrNo {
 			//邮箱冲突
-			return ErrUserDuplicateEmail
+			return ErrUserDuplicate
 		}
 	}
 	return err
@@ -74,7 +73,7 @@ type User struct {
 	Phone sql.NullString `gorm:"unique"`
 
 	// 早期有使用该方法，最大的问题是要解引用
-	//  需要判空
+	//  需要判空，如果对null进行解引用（*phone）就会触发panic
 	// Phone *string
 
 	// 创建时间，毫秒数

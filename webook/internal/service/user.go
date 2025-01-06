@@ -8,7 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var ErrUserDuplicateEmail = repository.ErrUserDuplicateEmail
+var ErrUserDuplicateEmail = repository.ErrUserDuplicate
 var ErrInvalidUserOrPassword = errors.New("账户/邮箱或密码错误")
 var ErrInvalidUserID = errors.New("无效的用户ID")
 
@@ -71,19 +71,33 @@ func (svc *UserService) Edit(ctx context.Context, u domain.User) error {
 
 func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
 	// 先查找
+	// 为啥要先查找？
+	// 如果没有查找直接通过insert成功说明是新用户，失败说明是已注册过的用户。理论上是可以的
+	// 但是如果是1w个用户里面有9500个是已注册过的，那么就需要1w次的insert
+	// 如果是先查找那么insert只需要500次，9500次只需要查询即可
+	// 这个叫做快路径
 	u, err := svc.repo.FindByPhone(ctx, phone)
 	//判断，有没有这个用户
 	if err != repository.ErrUserNotFound {
+		// 绝大部分请求会来这里
 		// nil 会进来这里
 		// 不为 ErrUserNotFound也会进来这里
 		return u, err
 	}
+
+	// 在系统资源不足，触发降级之后，不执行慢路径
+	//if ctx.Value("降级") == "true" {
+	//	return domain.User{}, errors.New("系统降级了")
+	//}
+
+	// 这个叫做慢路径
 	// 你明确知道 没有这个用户
 	u = domain.User{
 		Phone: phone,
 	}
 	err = svc.repo.Create(ctx, u)
-	if err != nil {
+	// 注册有问题但是又不是手机号码冲突，说明一定是系统错误
+	if err != nil && err != repository.ErrUserDuplicate {
 		return u, err
 	}
 	// 注意这里会遇到主从延迟的问题
@@ -109,4 +123,13 @@ func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, err
 	u, err := svc.repo.FindById(ctx, id)
 	return u, err
 
+}
+
+// 降级操作
+func PathsDownGrade(ctx context.Context, quick, slow func()) {
+	quick()
+	if ctx.Value("降级") == "true" {
+		return
+	}
+	slow()
 }
