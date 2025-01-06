@@ -16,12 +16,12 @@ import (
 // UserHandler 定义在它上面定义跟用户有关的路由
 type UserHandler struct {
 	svc         *service.UserService
-	smsSvc      *service.CodeService
+	codeSvc     *service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 }
 
-func NewUserHandler(svc *service.UserService, smsSvc *service.CodeService) *UserHandler {
+func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
 	const (
 		emailRegexPattern = "^\\w+(-+.\\w+)*@\\w+(-.\\w+)*.\\w+(-.\\w+)*$"
 		//使用``不用进行转义
@@ -38,7 +38,7 @@ func NewUserHandler(svc *service.UserService, smsSvc *service.CodeService) *User
 		svc:         svc,
 		emailExp:    emailExp,
 		passwordExp: passwordExp,
-		smsSvc:      smsSvc,
+		codeSvc:     codeSvc,
 	}
 }
 
@@ -61,23 +61,33 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	// PUT "/login/sms/code" 发送验证码
 	// POST "/login/sms/code" 校验验证码
 	ug.POST("/login_sms/code/send", u.SendLoginSMSCode)
+	ug.POST("/login_sms", u.LoginSms)
 }
+
+func (u *UserHandler) LoginSms(ctx *gin.Context) {}
 
 func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	type Req struct {
 		Phone string `json:"phone"`
 	}
 	var req Req
+	// 拿到手机号码
 	if err := ctx.Bind(&req); err != nil {
-		ctx.String(http.StatusOK, "系统错误")
+		ctx.String(http.StatusOK, "系统异常")
 		return
 	}
 	const biz = "login"
-	err := u.smsSvc.Send(ctx, biz, req.Phone)
+	// 发送验证码
+	err := u.codeSvc.Send(ctx, biz, req.Phone)
 	if err != nil {
-		ctx.String(http.StatusOK, "系统异常")
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
 	}
-	ctx.String(http.StatusOK, "发送成功")
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "发送成功",
+	})
 
 }
 

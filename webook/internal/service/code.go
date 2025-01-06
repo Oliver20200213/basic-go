@@ -17,11 +17,12 @@ var (
 )
 
 type CodeService struct {
-	repo   repository.CodeRepository
+	repo   *repository.CodeRepository
 	smsSvc sms.Service
+	//tplId string  模板id一般很少变动，可以直接定义，不用每次初始化的时候传入
 }
 
-func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service) *CodeService {
+func NewCodeService(repo *repository.CodeRepository, smsSvc sms.Service) *CodeService {
 	return &CodeService{repo: repo, smsSvc: smsSvc}
 }
 
