@@ -5,12 +5,14 @@ import (
 	"basic-go/webook/internal/repository/cache"
 	"basic-go/webook/internal/repository/dao"
 	"context"
+	"database/sql"
 	"log"
+	"time"
 )
 
 var (
 	ErrUserDuplicateEmail = dao.ErrUserDuplicateEmail
-	ErrUserNotFind        = dao.ErrUserNotFund
+	ErrUserNotFound       = dao.ErrUserNotFund
 )
 
 type UserRepository struct {
@@ -26,10 +28,7 @@ func NewRepository(dao *dao.UserDAO, cache *cache.UserCache) *UserRepository {
 }
 
 func (r *UserRepository) Create(ctx context.Context, u domain.User) error {
-	return r.dao.Insert(ctx, dao.User{
-		Email:    u.Email,
-		Password: u.Password,
-	})
+	return r.dao.Insert(ctx, r.domainToEntity(u))
 
 	//create的时候可以用下缓存，来提高性能，一般注册之后都会登录
 	//单独在login的时候没有必要使用缓存
@@ -40,11 +39,15 @@ func (r *UserRepository) FindByEmail(ctx context.Context, email string) (domain.
 	if err != nil {
 		return domain.User{}, err
 	}
-	return domain.User{
-		Id:       u.Id,
-		Email:    u.Email,
-		Password: u.Password,
-	}, nil
+	return r.entityToDomain(u), nil
+}
+
+func (r *UserRepository) FindByPhone(ctx context.Context, phone string) (domain.User, error) {
+	u, err := r.dao.FindByPhone(ctx, phone)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return r.entityToDomain(u), nil
 }
 
 func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, error) {
@@ -78,11 +81,7 @@ func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, e
 	if err != nil {
 		return domain.User{}, err
 	}
-	u = domain.User{
-		Id:       ue.Id,
-		Email:    ue.Email,
-		Password: ue.Password,
-	}
+	u = r.entityToDomain(ue)
 	// 将数据写入到cache中，可以开个goroutine
 	go func() {
 		err = r.cache.Set(ctx, u)
@@ -96,3 +95,30 @@ func (r *UserRepository) FindById(ctx context.Context, id int64) (domain.User, e
 }
 
 // 注意：使用缓存的两个核心问题：第一个是一致性问题， 第二个是我的缓存崩了
+
+func (r *UserRepository) domainToEntity(u domain.User) dao.User {
+	return dao.User{
+		Id: u.Id,
+		Email: sql.NullString{
+			String: u.Email,
+			// 我确实有手机号
+			Valid: u.Email != "",
+		},
+		Phone: sql.NullString{
+			String: u.Phone,
+			Valid:  u.Phone != "",
+		},
+		Password: u.Password,
+		Ctime:    u.Ctime.UnixMilli(),
+	}
+}
+
+func (r *UserRepository) entityToDomain(u dao.User) domain.User {
+	return domain.User{
+		Id:       u.Id,
+		Email:    u.Email.String, //u.Email.String表示存储的值 u.Email.Valid表示有没有数据
+		Password: u.Password,
+		Phone:    u.Phone.String,
+		Ctime:    time.UnixMilli(u.Ctime),
+	}
+}

@@ -42,7 +42,7 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 	//先找用户
 	u, err := svc.repo.FindByEmail(ctx, email)
 
-	if errors.Is(err, repository.ErrUserNotFind) {
+	if errors.Is(err, repository.ErrUserNotFound) {
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
 	if err != nil {
@@ -59,7 +59,7 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 
 func (svc *UserService) Edit(ctx context.Context, u domain.User) error {
 	u, err := svc.repo.FindById(ctx, u.Id)
-	if errors.Is(err, repository.ErrUserNotFind) {
+	if errors.Is(err, repository.ErrUserNotFound) {
 		return ErrInvalidUserID
 	}
 	if err != nil {
@@ -67,6 +67,28 @@ func (svc *UserService) Edit(ctx context.Context, u domain.User) error {
 	}
 
 	return nil
+}
+
+func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+	// 先查找
+	u, err := svc.repo.FindByPhone(ctx, phone)
+	//判断，有没有这个用户
+	if err != repository.ErrUserNotFound {
+		// nil 会进来这里
+		// 不为 ErrUserNotFound也会进来这里
+		return u, err
+	}
+	// 你明确知道 没有这个用户
+	u = domain.User{
+		Phone: phone,
+	}
+	err = svc.repo.Create(ctx, u)
+	if err != nil {
+		return u, err
+	}
+	// 注意这里会遇到主从延迟的问题
+	return svc.repo.FindByPhone(ctx, phone)
+
 }
 
 func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {

@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+const biz = "login"
+
 // UserHandler 定义在它上面定义跟用户有关的路由
 type UserHandler struct {
 	svc         *service.UserService
@@ -64,7 +66,64 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/login_sms", u.LoginSms)
 }
 
-func (u *UserHandler) LoginSms(ctx *gin.Context) {}
+func (u *UserHandler) LoginSms(ctx *gin.Context) {
+	type Req struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+	}
+	// 校验：是不是一个合法的手机号码
+	// 考虑用正则表达式
+	if req.Phone == "" {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "输入有误",
+		})
+		return
+	}
+	// 在这之前，可以加上各种校验
+	ok, err := u.codeSvc.Verify(ctx, biz, req.Phone, req.Code)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "验证码有误",
+		})
+		return
+	}
+	// 这个手机号会不是一个新用户呢？
+	// 这里如果没有注册过，同时注册
+	user, err := u.svc.FindOrCreate(ctx, req.Phone)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+
+	// 用户id要从那里获取
+	if err = u.setJWTToken(ctx, user.Id); err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "验证码校验通过",
+	})
+
+}
 
 func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	type Req struct {
@@ -73,21 +132,30 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	var req Req
 	// 拿到手机号码
 	if err := ctx.Bind(&req); err != nil {
-		ctx.String(http.StatusOK, "系统异常")
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
 		return
 	}
-	const biz = "login"
+
 	// 发送验证码
 	err := u.codeSvc.Send(ctx, biz, req.Phone)
-	if err != nil {
+	switch err {
+	case nil:
+		ctx.JSON(http.StatusOK, Result{
+			Msg: "发送成功",
+		})
+	case service.ErrCodeSendTooMany:
+		ctx.JSON(http.StatusOK, Result{
+			Msg: "发送太频繁，请稍后再试",
+		})
+	default:
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误",
 		})
 	}
-	ctx.JSON(http.StatusOK, Result{
-		Msg: "发送成功",
-	})
 
 }
 
@@ -176,13 +244,24 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	////生成一个JWT token（不带数据的）
 	//token := jwt.New(jwt.SigningMethodHS512)
 
+	if err = u.setJWTToken(ctx, user.Id); err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	ctx.String(http.StatusOK, "登录成功")
+	fmt.Println(user)
+	return
+
+}
+
+func (u *UserHandler) setJWTToken(ctx *gin.Context, uId int64) error {
 	//如何在JWT token中携带数据，比如要带userId
 	claims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			//配置过期时间
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
 		},
-		Uid:       user.Id,
+		Uid:       uId,
 		UserAgent: ctx.Request.UserAgent(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
@@ -191,17 +270,13 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	//更安全使用key生成token
 	tokenStr, err := token.SignedString([]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"))
 	if err != nil {
-		ctx.String(http.StatusInternalServerError, "系统错误")
-		return
+		return err
 	}
 
 	//将token放到header中
 	ctx.Header("x-jwt-token", tokenStr) //将token放到header中
 	fmt.Println(tokenStr)
-	fmt.Println(user)
-	ctx.String(http.StatusOK, "登录成功")
-	return
-
+	return nil
 }
 
 func (u *UserHandler) Login(ctx *gin.Context) {
@@ -252,36 +327,7 @@ func (u *UserHandler) Logout(ctx *gin.Context) {
 	sess.Save()
 	ctx.String(http.StatusOK, "退出登录成功")
 }
-func (u *UserHandler) Edit(ctx *gin.Context) {
-	type EditReq struct {
-		NickName string `json:"nikName"`
-		BirthDay string `json:"birth"`
-		Describe string `json:"describe"`
-	}
-	var req EditReq
-	if err := ctx.Bind(&req); err != nil {
-		ctx.String(http.StatusOK, "系统异常")
-		return
-	}
-
-	id, ok := sessions.Default(ctx).Get("userId").(int64)
-	if !ok {
-		ctx.String(http.StatusOK, "系统异常")
-		return
-	}
-
-	err := u.svc.Edit(ctx, domain.User{
-		Id:       id,
-		NickName: req.NickName,
-		BirthDay: req.BirthDay,
-		Describe: req.Describe,
-	})
-	if err != nil {
-		ctx.String(http.StatusOK, err.Error())
-		return
-	}
-
-}
+func (u *UserHandler) Edit(ctx *gin.Context) {}
 
 func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 	//c, ok := ctx.Get("claims")

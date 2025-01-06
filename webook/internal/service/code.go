@@ -77,5 +77,5 @@ func (svc *CodeService) generateCode() string {
 	num := rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(1000000)
 	// 不够六位的加上前导0
 	// 000001
-	return fmt.Sprintf("%6d", num)
+	return fmt.Sprintf("%06d", num)
 }
