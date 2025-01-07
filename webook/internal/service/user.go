@@ -126,10 +126,10 @@ func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, err
 }
 
 // 降级操作
-func PathsDownGrade(ctx context.Context, quick, slow func()) {
-	quick()
-	if ctx.Value("降级") == "true" {
-		return
-	}
-	slow()
-}
+//func PathsDownGrade(ctx context.Context, quick, slow func()) {
+//	quick()
+//	if ctx.Value("降级") == "true" {
+//		return
+//	}
+//	slow()
+//}

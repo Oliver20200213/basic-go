@@ -23,9 +23,7 @@ import (
 func main() {
 	db := initDB()
 	server := initServer()
-	rdb := redis2.NewClient(&redis2.Options{
-		Addr: config.Config.Redis.Addr,
-	})
+	rdb := initRedis()
 	u := initUser(db, rdb)
 	u.RegisterRoutes(server)
 
@@ -158,4 +156,11 @@ func initDB() *gorm.DB {
 	}
 
 	return db
+}
+
+func initRedis() redis2.Cmdable {
+	redisClient := redis2.NewClient(&redis2.Options{
+		Addr: config.Config.Redis.Addr,
+	})
+	return redisClient
 }
