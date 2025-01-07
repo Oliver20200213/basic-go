@@ -20,7 +20,7 @@ type UserRepository struct {
 	cache *cache.UserCache
 }
 
-func NewRepository(dao *dao.UserDAO, cache *cache.UserCache) *UserRepository {
+func NewUserRepository(dao *dao.UserDAO, cache *cache.UserCache) *UserRepository {
 	return &UserRepository{
 		dao:   dao,
 		cache: cache,
