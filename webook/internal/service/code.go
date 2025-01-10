@@ -16,18 +16,23 @@ var (
 	ErrCodeVerifyTooManyTimes = repository.ErrCodeVerifyTooManyTimes
 )
 
-type CodeService struct {
-	repo   *repository.CodeRepository
+type CodeService interface {
+	Send(ctx context.Context, biz string, phone string) error
+	Verify(ctx context.Context, biz string, phone string, inputCode string) (bool, error)
+}
+
+type codeService struct {
+	repo   repository.CodeRepository
 	smsSvc sms.Service
 	//tplId string  模板id一般很少变动，可以直接定义，不用每次初始化的时候传入
 }
 
-func NewCodeService(repo *repository.CodeRepository, smsSvc sms.Service) *CodeService {
-	return &CodeService{repo: repo, smsSvc: smsSvc}
+func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service) CodeService {
+	return &codeService{repo: repo, smsSvc: smsSvc}
 }
 
 // Send 发验证码，需要什么参数
-func (svc *CodeService) Send(ctx context.Context,
+func (svc *codeService) Send(ctx context.Context,
 	biz string, // 区别是什么业务场景
 	//code string, //这个码，谁来生成，一般可以自己生成
 	phone string) error {
@@ -54,7 +59,7 @@ func (svc *CodeService) Send(ctx context.Context,
 }
 
 // 区别出验证码对还是不对，或者是验证码业务有问题
-func (svc *CodeService) Verify(ctx context.Context, biz string,
+func (svc *codeService) Verify(ctx context.Context, biz string,
 	phone string, inputCode string) (bool, error) {
 	//redis中key的形式：
 	// phone_code:$biz:$phone
@@ -67,12 +72,12 @@ func (svc *CodeService) Verify(ctx context.Context, biz string,
 }
 
 //// 也可以值返回error,如果error为空则成功
-//func (svc *CodeService) VerifyV1(ctx context.Context, biz string,
+//func (svc *codeService) VerifyV1(ctx context.Context, biz string,
 //	phone string, inputCode string) error {
 //
 //}
 
-func (svc *CodeService) generateCode() string {
+func (svc *codeService) generateCode() string {
 	// 六位数，num 在0,999990之间，包含0和999999
 	num := rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(1000000)
 	// 不够六位的加上前导0

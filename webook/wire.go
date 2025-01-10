@@ -40,7 +40,7 @@ func InitWebServer() *gin.Engine {
 		// 注册路由怎么办
 		// 这个地方没有用到前面的任何东西
 		//gin.Default,
-		ioc.InitGin,
+		ioc.InitWebServer,
 		ioc.InitMiddlewares,
 	)
 

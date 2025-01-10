@@ -23,17 +23,22 @@ import (
 //	//你中间件团队去做的
 //	Get(ctx context.Context, key string) (any, error)
 //}
-//type UserCache struct {
+//type RedisUserCache struct {
 //	cache CacheV1
 //}
 //
-//func (u *UserCache) GetUser(ctx context.Context, id int64) (domain.User, error) {}
+//func (u *RedisUserCache) GetUser(ctx context.Context, id int64) (domain.User, error) {}
 
 // 弱一点的不依赖中间件的实践
 
 var ErrKeyNotExist = redis.Nil
 
-type UserCache struct {
+type UserCache interface {
+	Get(ctx context.Context, id int64) (domain.User, error)
+	Set(ctx context.Context, u domain.User) error
+}
+
+type RedisUserCache struct {
 	//传单机Redis可以
 	//传cluster的Redis也可以
 	client redis.Cmdable
@@ -46,9 +51,9 @@ type UserCache struct {
 // A用到了B，B一定是接口  => 这个是保证面向接口
 // A用到了B，B一定是A的字段  =>  为了规避包变量、包方法，这个了都非常缺乏扩展性
 // A用到了B，A绝对不初始化B，而是外面注入 => 保持依赖注入(DI,Dependency Injection)和依赖反转(IOC)
-func NewUserCache(client redis.Cmdable) *UserCache {
-	//func NewUserCache(client redis.Cmdable,expiration time.Duration) *UserCache {
-	return &UserCache{
+func NewUserCache(client redis.Cmdable) UserCache {
+	//func NewUserCache(client redis.Cmdable,expiration time.Duration) *RedisUserCache {
+	return &RedisUserCache{
 		client:     client,
 		expiration: time.Minute * 15,
 		//不写死的话需要传入，但是一定要传入上面字段的格式time.Duration
@@ -59,8 +64,8 @@ func NewUserCache(client redis.Cmdable) *UserCache {
 // GetUser
 // 只要err为nil 就认为缓存里面有数据
 // 如果没有数据，返回一个特定的error
-// func (cache *UserCache) Get(ctx context.Context, id int64,expiration time.Duration) (domain.User, error) {
-func (cache *UserCache) Get(ctx context.Context, id int64) (domain.User, error) {
+// func (cache *RedisUserCache) Get(ctx context.Context, id int64,expiration time.Duration) (domain.User, error) {
+func (cache *RedisUserCache) Get(ctx context.Context, id int64) (domain.User, error) {
 	key := cache.key(id)
 	//数据不存在，err != redis.Nil
 	val, err := cache.client.Get(ctx, key).Bytes()
@@ -73,7 +78,7 @@ func (cache *UserCache) Get(ctx context.Context, id int64) (domain.User, error) 
 	return u, err
 
 }
-func (cache *UserCache) Set(ctx context.Context, u domain.User) error {
+func (cache *RedisUserCache) Set(ctx context.Context, u domain.User) error {
 	val, err := json.Marshal(u) //不到万不得已不要忽略任何错误 val,_:=json.Marshal(u) 好处是可以更好的定位错误
 	if err != nil {
 		return err
@@ -82,7 +87,7 @@ func (cache *UserCache) Set(ctx context.Context, u domain.User) error {
 	return cache.client.Set(ctx, key, val, cache.expiration).Err()
 }
 
-func (cache *UserCache) key(id int64) string {
+func (cache *RedisUserCache) key(id int64) string {
 	//key的命名：
 	// user:info:123
 	// user_info_123

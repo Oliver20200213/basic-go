@@ -93,6 +93,7 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			ctx.Header("x-jwt-token", tokenStr)
 		}
 
+		// set是向ctx中添加数据    value是获取数据ctx.Value("claims“)
 		ctx.Set("claims", claims)
 	}
 }

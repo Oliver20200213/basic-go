@@ -12,18 +12,26 @@ var ErrUserDuplicateEmail = repository.ErrUserDuplicate
 var ErrInvalidUserOrPassword = errors.New("账户/邮箱或密码错误")
 var ErrInvalidUserID = errors.New("无效的用户ID")
 
-type UserService struct {
-	repo *repository.UserRepository
+type UserService interface {
+	SignUp(ctx context.Context, u domain.User) error
+	Login(ctx context.Context, email, password string) (domain.User, error)
+	Edit(ctx context.Context, u domain.User) error
+	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
+	Profile(ctx context.Context, id int64) (domain.User, error)
+}
+
+type userService struct {
+	repo repository.UserRepository
 	//redis *redis.Client //错误实践 不是很严谨的方式
 }
 
-func NewUserService(repo *repository.UserRepository) *UserService {
-	return &UserService{
+func NewUserService(repo repository.UserRepository) UserService {
+	return &userService{
 		repo: repo,
 	}
 }
 
-func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
+func (svc *userService) SignUp(ctx context.Context, u domain.User) error {
 	// u domain.User 可以不用指针，如果使用指针需要进行判空 if u ==nil{}
 	//很有可能分配到栈上去  没有内存逃逸
 
@@ -38,7 +46,7 @@ func (svc *UserService) SignUp(ctx context.Context, u domain.User) error {
 
 }
 
-func (svc *UserService) Login(ctx context.Context, email, password string) (domain.User, error) {
+func (svc *userService) Login(ctx context.Context, email, password string) (domain.User, error) {
 	//先找用户
 	u, err := svc.repo.FindByEmail(ctx, email)
 
@@ -57,7 +65,7 @@ func (svc *UserService) Login(ctx context.Context, email, password string) (doma
 	return u, nil
 }
 
-func (svc *UserService) Edit(ctx context.Context, u domain.User) error {
+func (svc *userService) Edit(ctx context.Context, u domain.User) error {
 	u, err := svc.repo.FindById(ctx, u.Id)
 	if errors.Is(err, repository.ErrUserNotFound) {
 		return ErrInvalidUserID
@@ -69,7 +77,7 @@ func (svc *UserService) Edit(ctx context.Context, u domain.User) error {
 	return nil
 }
 
-func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
+func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
 	// 先查找
 	// 为啥要先查找？
 	// 如果没有查找直接通过insert成功说明是新用户，失败说明是已注册过的用户。理论上是可以的
@@ -105,7 +113,7 @@ func (svc *UserService) FindOrCreate(ctx context.Context, phone string) (domain.
 
 }
 
-func (svc *UserService) Profile(ctx context.Context, id int64) (domain.User, error) {
+func (svc *userService) Profile(ctx context.Context, id int64) (domain.User, error) {
 	//错误实践
 	////第一个念头是
 	//val, err := svc.redis.Get(ctx, fmt.Sprintf("user:info:%d", id)).Result()

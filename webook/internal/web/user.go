@@ -8,22 +8,28 @@ import (
 	regexp "github.com/dlclark/regexp2" //引入新的正则库替代标准库 这样引入可以使用regexp调用而不是regexp2
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	jwt "github.com/golang-jwt/jwt/v5"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"time"
 )
 
 const biz = "login"
 
+// 确保 UserHandler上实现了handler接口
+var _ handler = &UserHandler{}
+
+// 第二种写法，这种写法更优雅
+var _ handler = (*UserHandler)(nil)
+
 // UserHandler 定义在它上面定义跟用户有关的路由
 type UserHandler struct {
-	svc         *service.UserService
-	codeSvc     *service.CodeService
+	svc         service.UserService
+	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 }
 
-func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
 	const (
 		emailRegexPattern = "^\\w+(-+.\\w+)*@\\w+(-.\\w+)*.\\w+(-.\\w+)*$"
 		//使用``不用进行转义
@@ -45,13 +51,13 @@ func NewUserHandler(svc *service.UserService, codeSvc *service.CodeService) *Use
 }
 
 // 另一种分组的方式,将分组放到外面
-func (u *UserHandler) RegisterRoutesV1(ug *gin.RouterGroup) {
-	ug.POST("/signup.lua", u.SignUp)
-	//ug.POST("/login", u.Login)
-	ug.POST("/login", u.Login)
-	ug.POST("/edit", u.Edit)
-	ug.GET("/profile", u.Profile)
-}
+//func (u *UserHandler) RegisterRoutesV1(ug *gin.RouterGroup) {
+//	ug.POST("/signup.lua", u.SignUp)
+//	//ug.POST("/login", u.Login)
+//	ug.POST("/login", u.Login)
+//	ug.POST("/edit", u.Edit)
+//	ug.GET("/profile", u.Profile)
+//}
 
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
