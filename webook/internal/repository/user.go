@@ -20,6 +20,7 @@ type UserRepository interface {
 	FindByEmail(ctx context.Context, email string) (domain.User, error)
 	FindByPhone(ctx context.Context, phone string) (domain.User, error)
 	FindById(ctx context.Context, id int64) (domain.User, error)
+	UpdateNonZeroFields(ctx context.Context, u domain.User) error
 }
 
 type CacheUserRepository struct {
@@ -116,6 +117,9 @@ func (r *CacheUserRepository) domainToEntity(u domain.User) dao.User {
 			Valid:  u.Phone != "",
 		},
 		Password: u.Password,
+		Nickname: u.Nickname,
+		AboutMe:  u.AboutMe,
+		Birthday: u.Birthday.UnixMilli(), //将time.Time转为int64
 		Ctime:    u.Ctime.UnixMilli(),
 	}
 }
@@ -126,6 +130,13 @@ func (r *CacheUserRepository) entityToDomain(u dao.User) domain.User {
 		Email:    u.Email.String, //u.Email.String表示存储的值 u.Email.Valid表示有没有数据
 		Password: u.Password,
 		Phone:    u.Phone.String,
+		Nickname: u.Nickname,
+		AboutMe:  u.AboutMe,
+		Birthday: time.UnixMilli(u.Birthday), //将int64转为time.Time
 		Ctime:    time.UnixMilli(u.Ctime),
 	}
+}
+
+func (r *CacheUserRepository) UpdateNonZeroFields(ctx context.Context, u domain.User) error {
+	return r.dao.UpdateById(ctx, r.domainToEntity(u))
 }

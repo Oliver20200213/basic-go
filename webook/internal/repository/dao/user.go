@@ -19,6 +19,7 @@ type UserDao interface {
 	FindByEmail(ctx context.Context, email string) (User, error)
 	FindByPhone(ctx context.Context, phone string) (User, error)
 	FindById(ctx context.Context, id int64) (User, error)
+	UpdateById(ctx context.Context, entity User) error
 }
 
 type GORMUserDao struct {
@@ -72,6 +73,9 @@ type User struct {
 	Id       int64          `gorm:"primaryKey,autoIncrement"`
 	Email    sql.NullString `gorm:"unique"`
 	Password string
+	Nickname string `gorm:"type:varchar(128)"`
+	Birthday int64
+	AboutMe  string `gorm:"type:varchar(4096)"` // about_me  自己指定：gorm:"column:your_column_name"
 	// Phone    string `gorm:"unique"`
 	// 如果都是用email注册登录，没有手机，那么Phone为空字符串，就会出现unique索引的冲突,
 	// 反之都是用phone登录，email为空字符串，也会出现冲突
@@ -93,4 +97,14 @@ func (dao *GORMUserDao) FindById(ctx context.Context, id int64) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("`id` = ?", id).First(&u).Error
 	return u, err
+}
+
+func (dao *GORMUserDao) UpdateById(ctx context.Context, entity User) error {
+	return dao.db.WithContext(ctx).Model(&entity).Where("id = ?", entity.Id).
+		Updates(map[string]any{
+			"utime":    time.Now().UnixMilli(),
+			"nickname": entity.Nickname,
+			"birthday": entity.Birthday,
+			"about_me": entity.AboutMe,
+		}).Error
 }

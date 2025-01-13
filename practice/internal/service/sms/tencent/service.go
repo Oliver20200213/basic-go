@@ -16,8 +16,8 @@ type Service struct {
 
 func NewService(client *sms.Client, appId string, signName string) *Service {
 	return &Service{
-		appId:    appId,    //SDKAppID,应用id，需要到腾云与短信控制台里面的应用列表中查找
-		signName: signName, //短信息签名
+		appId:    ekit.ToPtr[string](appId),    //SDKAppID,应用id，需要到腾云与短信控制台里面的应用列表中查找
+		signName: ekit.ToPtr[string](signName), //短信息签名
 		client:   client,
 	}
 }

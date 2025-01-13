@@ -65,7 +65,9 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	//ug.POST("/login", u.Login)
 	ug.POST("/login", u.LoginJWT)
 	ug.POST("/edit", u.Edit)
-	ug.GET("/profile", u.ProfileJWT)
+	//ug.GET("/profile", u.ProfileJWT)
+	ug.GET("/profile", u.ProfileJWTV1)
+
 	// PUT "/login/sms/code" 发送验证码
 	// POST "/login/sms/code" 校验验证码
 	ug.POST("/login_sms/code/send", u.SendLoginSMSCode)
@@ -333,7 +335,6 @@ func (u *UserHandler) Logout(ctx *gin.Context) {
 	sess.Save()
 	ctx.String(http.StatusOK, "退出登录成功")
 }
-func (u *UserHandler) Edit(ctx *gin.Context) {}
 
 func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 	//c, ok := ctx.Get("claims")
@@ -371,9 +372,27 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 }
 
 func (u *UserHandler) Profile(ctx *gin.Context) {
-	ctx.String(http.StatusOK, "这是profile页面")
-	//println("xxxxxx")
-	return
+	type Profile struct {
+		Email string
+	}
+	sess := sessions.Default(ctx)
+	id := sess.Get("userIdKey").(int64) // 如果不是int64在断言的时候可能会panic掉
+	user, err := u.svc.Profile(ctx, id)
+	if err != nil {
+		// 按道理来说，id是对应的数据是肯定存在的，所以要是没找到，
+		// 那说明是系统出问题了
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Data: Profile{
+			Email: user.Email,
+		},
+	},
+	)
 }
 
 type UserClaims struct {
@@ -382,4 +401,101 @@ type UserClaims struct {
 	Uid int64
 	//自己可以随便加，但是最好不要加敏感数据例如password 权限之类的信息
 	UserAgent string
+}
+
+func (u *UserHandler) ProfileJWTV1(ctx *gin.Context) {
+	type Profile struct {
+		Email    string
+		Phone    string
+		Nickname string
+		Birthday string
+		AboutMe  string
+	}
+	uc := ctx.MustGet("claims").(*UserClaims) //与Get相比如果没有获取到user则会panic
+	user, err := u.svc.Profile(ctx, uc.Uid)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	// 这里不建议将领域的domain.user暴漏出去，一个是domain.user中有可能会有敏感数据像密码啥啥的
+	// 在一个是不知都以后你的同事会不会将其他敏感的信息添加到domain.user中，所以需要自己定义要返回的数据
+	ctx.JSON(http.StatusOK, Result{
+		Data: Profile{
+			Email:    user.Email,
+			Phone:    user.Phone,
+			Nickname: user.Nickname,
+			Birthday: user.Birthday.Format(time.DateOnly),
+			// time.DateOnly是常量"2006-01-02" 这里是将time.Time主换成time.DateOnly格式的字符串
+			AboutMe: user.AboutMe,
+		},
+	})
+
+}
+
+func (u *UserHandler) Edit(ctx *gin.Context) {
+	type Req struct {
+		// 注意：其他字段，尤其是密码、邮箱和手机
+		// 修改的时候需要通过别的手段
+		// 邮箱、手机、密码都需要验证
+		Nickname string `json:"nickname"`
+		// 2024-01-13
+		Birthday string `json:"birthday"`
+		AboutMe  string `json:"about_me"`
+	}
+	var req Req
+	if err := ctx.Bind(&req); err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+	}
+	// 可以在这两进行校验
+	// 例如要求Nickname不需不为空
+	// 校验的规则取决于产品经理
+	if req.Nickname == "" {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "昵称不能为空",
+		})
+		return
+	}
+	if len(req.AboutMe) > 1024 {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "关于我过长",
+		})
+		return
+	}
+	birthday, err := time.Parse(time.DateOnly, req.Birthday) // 将字符串是time.DateOnly格式（yy-mm-dd）解析为time.Time格式
+	if err != nil {
+		// 这里其实没有直接校验具体的格式
+		// 如果能欧成功转化过来，那就寿命没问题
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "日期格式不对",
+		})
+		return
+	}
+
+	uc := ctx.MustGet("claims").(*UserClaims)
+	err = u.svc.UpdateNonSensitiveInfo(ctx, domain.User{
+		Id:       uc.Uid,
+		Nickname: req.Nickname,
+		Birthday: birthday,
+		AboutMe:  req.AboutMe,
+	})
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "OK",
+	})
+
 }

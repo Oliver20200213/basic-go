@@ -14,7 +14,7 @@ func (s *Service) SendV1(ctx context.Context, tpl string, args []sms.NamedArg, n
 	panic("implement me")
 }
 
-func NewService() *Service {
+func NewService() sms.Service {
 	return &Service{}
 }
 

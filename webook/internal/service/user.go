@@ -15,9 +15,9 @@ var ErrInvalidUserID = errors.New("无效的用户ID")
 type UserService interface {
 	SignUp(ctx context.Context, u domain.User) error
 	Login(ctx context.Context, email, password string) (domain.User, error)
-	Edit(ctx context.Context, u domain.User) error
 	FindOrCreate(ctx context.Context, phone string) (domain.User, error)
 	Profile(ctx context.Context, id int64) (domain.User, error)
+	UpdateNonSensitiveInfo(ctx context.Context, user domain.User) error
 }
 
 type userService struct {
@@ -65,18 +65,6 @@ func (svc *userService) Login(ctx context.Context, email, password string) (doma
 	return u, nil
 }
 
-func (svc *userService) Edit(ctx context.Context, u domain.User) error {
-	u, err := svc.repo.FindById(ctx, u.Id)
-	if errors.Is(err, repository.ErrUserNotFound) {
-		return ErrInvalidUserID
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.User, error) {
 	// 先查找
 	// 为啥要先查找？
@@ -114,7 +102,7 @@ func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.
 }
 
 func (svc *userService) Profile(ctx context.Context, id int64) (domain.User, error) {
-	//错误实践
+	//错误实践，在service中调用cache
 	////第一个念头是
 	//val, err := svc.redis.Get(ctx, fmt.Sprintf("user:info:%d", id)).Result()
 	//if err != nil {
@@ -127,9 +115,10 @@ func (svc *userService) Profile(ctx context.Context, id int64) (domain.User, err
 	//}
 	//接下来，就是从数据库中查找
 
-	//最佳实践
-	u, err := svc.repo.FindById(ctx, id)
-	return u, err
+	// 最佳实践
+	// 在系统内部，基本上都是用ID的
+	// 有些系统比较复杂，会用一个GUID(global unique ID)
+	return svc.repo.FindById(ctx, id)
 
 }
 
@@ -141,3 +130,7 @@ func (svc *userService) Profile(ctx context.Context, id int64) (domain.User, err
 //	}
 //	slow()
 //}
+
+func (svc *userService) UpdateNonSensitiveInfo(ctx context.Context, user domain.User) error {
+	return svc.repo.UpdateNonZeroFields(ctx, user)
+}
