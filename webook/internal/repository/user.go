@@ -15,6 +15,8 @@ var (
 	ErrUserNotFound  = dao.ErrUserNotFund
 )
 
+// UserRepository 是核心，它有不同的实现
+// 但是Factory本身如果只是初始化一下，那么它不是你的核心
 type UserRepository interface {
 	Create(ctx context.Context, u domain.User) error
 	FindByEmail(ctx context.Context, email string) (domain.User, error)

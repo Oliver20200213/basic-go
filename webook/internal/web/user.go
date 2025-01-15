@@ -61,7 +61,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 
 func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug := server.Group("/users")
-	ug.POST("/signup.lua", u.SignUp)
+	ug.POST("/signup", u.SignUp)
 	//ug.POST("/login", u.Login)
 	ug.POST("/login", u.LoginJWT)
 	ug.POST("/edit", u.Edit)
@@ -225,7 +225,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	}
 
 	fmt.Printf("%v\n", req)
-	ctx.String(http.StatusOK, "注册成功  ")
+	ctx.String(http.StatusOK, "注册成功")
 	return
 }
 

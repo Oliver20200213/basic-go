@@ -10,7 +10,6 @@ import (
 
 var ErrUserDuplicateEmail = repository.ErrUserDuplicate
 var ErrInvalidUserOrPassword = errors.New("账户/邮箱或密码错误")
-var ErrInvalidUserID = errors.New("无效的用户ID")
 
 type UserService interface {
 	SignUp(ctx context.Context, u domain.User) error
@@ -25,6 +24,7 @@ type userService struct {
 	//redis *redis.Client //错误实践 不是很严谨的方式
 }
 
+// 我用的人，只管用，怎初始化我不管， 我一点都不关心如何初始化
 func NewUserService(repo repository.UserRepository) UserService {
 	return &userService{
 		repo: repo,
