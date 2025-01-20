@@ -81,6 +81,7 @@ func (u *UserHandler) LoginSms(ctx *gin.Context) {
 	}
 	var req Req
 	if err := ctx.Bind(&req); err != nil {
+		return
 	}
 	// 校验：是不是一个合法的手机号码
 	// 考虑用正则表达式
@@ -140,9 +141,15 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 	var req Req
 	// 拿到手机号码
 	if err := ctx.Bind(&req); err != nil {
+		return
+	}
+
+	// 校验：是不是一个合法的手机号码
+	// 考虑用正则表达式
+	if req.Phone == "" {
 		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误",
+			Code: 4,
+			Msg:  "输入有误",
 		})
 		return
 	}

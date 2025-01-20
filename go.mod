@@ -3,6 +3,7 @@ module basic-go
 go 1.23
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/alibabacloud-go/dysmsapi-20170525/v2 v2.0.18
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.76
 	github.com/dlclark/regexp2 v1.11.4

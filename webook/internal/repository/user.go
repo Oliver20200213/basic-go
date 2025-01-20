@@ -92,6 +92,15 @@ func (r *CacheUserRepository) FindById(ctx context.Context, id int64) (domain.Us
 		return domain.User{}, err
 	}
 	u = r.entityToDomain(ue)
+
+	// 非异步测试：
+	//err = r.cache.Set(ctx, u)
+	//if err != nil {
+	//	log.Println(err)
+	//}
+	//return u, nil
+
+	// 异步测试：
 	// 将数据写入到cache中，可以开个goroutine
 	go func() {
 		err = r.cache.Set(ctx, u)

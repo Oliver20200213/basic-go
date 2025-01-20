@@ -51,9 +51,11 @@ func (svc *userService) Login(ctx context.Context, email, password string) (doma
 	u, err := svc.repo.FindByEmail(ctx, email)
 
 	if errors.Is(err, repository.ErrUserNotFound) {
+		// 用户未找到
 		return domain.User{}, ErrInvalidUserOrPassword
 	}
 	if err != nil {
+		// 系统错误
 		return domain.User{}, err
 	}
 	//比较密码

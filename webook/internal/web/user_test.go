@@ -50,6 +50,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 			name: "注册成功",
 			mock: func(ctrl *gomock.Controller) service.UserService {
 				usersvc := svcmocks.NewMockUserService(ctrl)
+				// 根据userHandler的SignUp接口中调用的谁，这里预期调用的就是谁
 				usersvc.EXPECT().SignUp(gomock.Any(), domain.User{
 					Email:    "123@qq.com",
 					Password: "hello#world123",
@@ -259,4 +260,18 @@ func TestMock(t *testing.T) {
 		Email: "123@qq.com",
 	})
 	t.Log(err)
+}
+
+func TestUserHandler_LoginSms(t *testing.T) {
+	testCases := []struct {
+		name string
+	}{
+		{},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+
+		})
+	}
 }
