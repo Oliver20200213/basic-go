@@ -10,7 +10,7 @@ import (
 type Service interface {
 	Send(ctx context.Context, tpl string, args []string, numbers ...string) error
 	//建议使用SendV1
-	SendV1(ctx context.Context, tpl string, args []NamedArg, numbers ...string) error
+	//SendV1(ctx context.Context, tpl string, args []NamedArg, numbers ...string) error
 	//调用者需要知道实现者需要知道是什么参数，是[]string还是map[string]string
 	//SendV2(ctx context.Context, tpl string, args any, numbers ...string) error
 }

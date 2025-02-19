@@ -78,7 +78,7 @@ func (svc *codeService) Verify(ctx context.Context, biz string,
 //}
 
 func (svc *codeService) generateCode() string {
-	// 六位数，num 在0,999990之间，包含0和999999
+	// 六位数，num 在0,999999之间，包含0和999999
 	num := rand.New(rand.NewSource(time.Now().UnixNano())).Int31n(1000000)
 	// 不够六位的加上前导0
 	// 000001

@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"basic-go/practice/internal/web"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"log"
@@ -48,6 +49,7 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"), nil
 		})
+		fmt.Println("claims::::::;:", claims.Uid)
 		if err != nil {
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return

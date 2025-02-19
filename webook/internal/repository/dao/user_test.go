@@ -21,7 +21,7 @@ func TestGORMUserDao_Insert(t *testing.T) {
 	testCases := []struct {
 		name string
 		// 为什么不用ctrl？
-		// 以为这里是sqlmock 不是gomock
+		// 因为这里是sqlmock 不是gomock
 		mock    func(t *testing.T) *sql.DB
 		ctx     context.Context
 		user    User
@@ -30,12 +30,15 @@ func TestGORMUserDao_Insert(t *testing.T) {
 		{
 			name: "插入成功",
 			mock: func(t *testing.T) *sql.DB {
+				// mockDB 是一个*sql.DB 对象，可以像操作真实数据库一样操作它
+				// mock 是一个 sqlmock.Sqlmock 对象，用于设置模拟的 SQL 查询行为（如预期执行的 SQL 语句、返回的结果或错误）。
 				mockDB, mock, err := sqlmock.New()
+				// 构建insert之后的返回值
 				res := sqlmock.NewResult(3, 1) // 3表示插入的id 1表示受影响的行数
 				// 增删改用ExpectExec  查询用ExpectQuery
 				// 后面是.*，这里预期的是一个正则表达式
 				// 这个写法的意思是，只要是INSERT 到users的语句就行
-				mock.ExpectExec("INSERT INTO `users`.*").
+				mock.ExpectExec("INSERT INTO `users` .*").
 					WillReturnResult(res)
 				require.NoError(t, err)
 

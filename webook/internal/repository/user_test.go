@@ -18,7 +18,7 @@ import (
 func TestCacheUserRepository_FindById(t *testing.T) {
 	// 111ms.11111ns
 	now := time.Now().In(time.Local)
-	// 需要去掉毫秒意外的部分 111ms
+	// 需要去掉毫秒以外的部分 111ms
 	now = time.UnixMilli(now.UnixMilli())
 	testCase := []struct {
 		name     string
@@ -57,7 +57,7 @@ func TestCacheUserRepository_FindById(t *testing.T) {
 					Email:    "123@qq.com",
 					Password: "this is a password",
 					Phone:    "15512345678",
-					Ctime:    now, //注意这里的时间需要保留到毫秒，time.Now()是到微秒的
+					Ctime:    now, //注意这里的时间需要保留到毫秒，time.Now()是到纳秒的
 					Birthday: now,
 				}).Return(nil)
 				return d, c

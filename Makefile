@@ -6,4 +6,10 @@ mock:
 	@mockgen --source=E:/gowork/src/basic-go/webook/internal/repository/code.go -package=repomocks -destination=E:/gowork/src/basic-go/webook/internal/repository/mocks/code.mock.go
 	@mockgen --source=E:/gowork/src/basic-go/webook/internal/repository/dao/user.go -package=daomocks -destination=E:/gowork/src/basic-go/webook/internal/repository/dao/mocks/user.mock.go
 	@mockgen --source=E:/gowork/src/basic-go/webook/internal/repository/cache/user.go -package=cachemocks -destination=E:/gowork/src/basic-go/webook/internal/repository/cache/mocks/user.mock.go
+#模拟redis
 	@mockgen -package=redismocks -destination=E:/gowork/src/basic-go/webook/internal/repository/cache/redismocks/cmdable.mock.go github.com/redis/go-redis/v9 Cmdable
+
+
+
+
+# 执行方法： make mock

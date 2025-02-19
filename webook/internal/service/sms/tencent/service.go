@@ -13,6 +13,7 @@ type Service struct {
 	appId    *string
 	signName *string
 	client   *sms.Client
+	//limiter  ratelimit.Limiter
 }
 
 func NewService(client *sms.Client, appId string, signName string) *Service {
@@ -23,11 +24,34 @@ func NewService(client *sms.Client, appId string, signName string) *Service {
 	}
 }
 
+//func NewService(client *sms.Client, appId string, signName string, limiter ratelimit.Limiter) *Service {
+//	return &Service{
+//		appId:    ekit.ToPtr[string](appId),
+//		signName: ekit.ToPtr[string](signName),
+//		client:   client,
+//		limiter:  limiter,
+//	}
+//}
+
 //TemplateParam的参数args格式:
 //腾讯云的参数args是 []*string
 //阿里云的参数args是 string， json串
 
 func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
+	//// 侵入式的写法（改了已有的代码，不推荐）需要用装饰器实现
+	//limited, err := s.limiter.Limit(ctx, "sms:tencent")
+	//if err != nil {
+	//	// 系统错误
+	//	// 可以限流：保守策略，你的下游很坑的时候，
+	//	// 可以不限流：你的下游很强，业务可用性要求很高，尽量容错策略
+	//	// 包一下这个错误
+	//	return fmt.Errorf("短信服务判断是否限流出现问题，%w", err)
+	//
+	//}
+	//if limited {
+	//	return fmt.Errorf("短信服务触发了限流")
+	//}
+
 	//如果是微服务有别人调用需要检测下，要发送的号码是不是空的
 	//if len(numbers) == 0 {
 	//	return errors.New("no numbers provided")

@@ -58,4 +58,5 @@ func (b *Builder) limit(ctx *gin.Context) (bool, error) {
 	key := fmt.Sprintf("%s:%s", b.prefix, ctx.ClientIP())
 	return b.cmd.Eval(ctx, luaScript, []string{key},
 		b.interval.Milliseconds(), b.rate, time.Now().UnixMilli()).Bool()
+	// time.Duration默认返回纳秒数，使用Milliseconds()返回毫秒数，返回值是一个 int64 类型的整数
 }

@@ -76,7 +76,6 @@ func (cache *RedisUserCache) Get(ctx context.Context, id int64) (domain.User, er
 	err = json.Unmarshal(val, &u)
 	//fmt.Println("cache user", u)
 	return u, err
-
 }
 func (cache *RedisUserCache) Set(ctx context.Context, u domain.User) error {
 	val, err := json.Marshal(u) //不到万不得已不要忽略任何错误 val,_:=json.Marshal(u) 好处是可以更好的定位错误

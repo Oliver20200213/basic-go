@@ -74,7 +74,7 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		}
 		if claims.UserAgent != ctx.Request.UserAgent() {
 			//严重的安全问题
-			//是需要家监控
+			//是需要加监控
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return
 		}

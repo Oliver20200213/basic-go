@@ -70,6 +70,7 @@ func (r *CacheUserRepository) FindById(ctx context.Context, id int64) (domain.Us
 	// 缓存里面没有数据
 	// 缓存出错了，你也不知道有没有数据
 	if err == nil {
+		// err == nil 也既是err不等于redis.Nil（redis没有查询到）还是其他错误
 		// 必然是有数据
 		return u, nil
 	}

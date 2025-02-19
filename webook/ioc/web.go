@@ -11,10 +11,10 @@ import (
 	"time"
 )
 
-func InitWebServer(mdls []gin.HandlerFunc, UserHld *web.UserHandler) *gin.Engine {
+func InitWebServer(mdls []gin.HandlerFunc, UserHdl *web.UserHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(mdls...)
-	UserHld.RegisterRoutes(server)
+	UserHdl.RegisterRoutes(server)
 	return server
 }
 
@@ -44,13 +44,14 @@ func corsHdl() gin.HandlerFunc {
 			}
 			return strings.Contains(origin, "公司的域名")
 		},
-		MaxAge: 12 * time.Hour, //profile的有效期
+		MaxAge: 12 * time.Hour,
+		//这个选项指定浏览器在进行跨域预检请求（Preflight Request）时，能够缓存 CORS 信息的最大时间。也就是说，浏览器在接收到响应后，会在 12 小时内缓存这些 CORS 配置，而不再每次请求时都进行预检。
 	})
 }
 
 func loginJWTHdl() gin.HandlerFunc {
 	return middleware.NewLoginJWTMiddlewareBuilder().
-		IgnorePaths("/users/signup.lua").
+		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login").
 		IgnorePaths("/users/login_sms/code/send").
 		IgnorePaths("/users/login_sms").

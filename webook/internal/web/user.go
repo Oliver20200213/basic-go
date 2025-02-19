@@ -33,7 +33,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 	const (
 		emailRegexPattern = "^\\w+(-+.\\w+)*@\\w+(-.\\w+)*.\\w+(-.\\w+)*$"
 		//使用``不用进行转义
-		//emailRegexPattern := `^\w+(-+.\w+)*@\w+(-.\w+)*.\w+(-.\w+)*$`
+		//emailRegexPattern = `^\w+(-+.\w+)*@\w+(-.\w+)*.\w+(-.\w+)*$`
 
 		//注意go标准的正则库不支持复杂的正则，需要引入额外的库github.com/dlclark/regexp2
 		passwordRegexPattern = `^(?=.*[A-Za-z])(?=.*\d)(?=.*[$@$!%*#?&])[A-Za-z\d$@$!%*#?&]{8,72}$`
@@ -185,6 +185,7 @@ func (u *UserHandler) SignUp(ctx *gin.Context) {
 	//bind方法会根据content-type来解析你的数据到req里面
 	//解析错了，就会直接写回一个400错误
 	if err := ctx.Bind(&req); err != nil {
+		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
 

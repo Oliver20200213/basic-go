@@ -81,6 +81,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 	"password":"hello#world123"
 `,
 			wantCode: http.StatusBadRequest,
+			wantBody: "系统错误",
 		},
 		{
 			name: "邮箱格式不对",
@@ -176,7 +177,7 @@ func TestUserHandler_SignUp(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			// 0.初始化ctrl
+			// 0.初始化ctrl 创建一个测试控制器实例，参数t是将测试框架和gomock集成
 			ctrl := gomock.NewController(t)
 			defer ctrl.Finish()
 			// 思路：构造http请求，获取到http的响应
@@ -190,6 +191,9 @@ func TestUserHandler_SignUp(t *testing.T) {
 			req, err := http.NewRequest(http.MethodPost,
 				"/users/signup",
 				bytes.NewBuffer([]byte(tc.reqBody)))
+			// 初始化一个个用于处理字节数据的可变大小的缓冲区，并存入数据
+			// 实现了 io.Writer 和 io.Reader 接口，通常用于存储和操作字节流
+
 			// 数据是json格式
 			req.Header.Set("Content-Type", "application/json")
 			require.NoError(t, err) //由于是自己定义的 所以任务是一定没有错误，如果有错误直接终止测试
@@ -264,14 +268,82 @@ func TestMock(t *testing.T) {
 
 func TestUserHandler_LoginSms(t *testing.T) {
 	testCases := []struct {
-		name string
+		name     string
+		mock     func(ctrl *gomock.Controller) (service.UserService, service.CodeService)
+		reqBody  string
+		wantCode int
+		wantBody string
 	}{
+		{},
 		{},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
 
+			// 初始化模拟的svc
+			userSvc, codeSvc := tc.mock(ctrl)
+
+			// 初始化userHandler
+			hdl := NewUserHandler(userSvc, codeSvc)
+
+			// 构建gin并注册路由
+			server := gin.Default()
+			hdl.RegisterRoutes(server)
+
+			// 构建请求
+			req, err := http.NewRequest(http.MethodPost,
+				"/users/login_sms", bytes.NewBuffer([]byte(tc.reqBody)))
+			require.NoError(t, err)
+
+			// 构建响应记录器
+			resp := httptest.NewRecorder()
+
+			// 实现请求
+			server.ServeHTTP(resp, req)
+
+			//断言响应码和响应体
+			assert.Equal(t, tc.wantCode, resp.Code)
+			assert.JSONEq(t, tc.wantBody, resp.Body.String())
+			// JSONEq用于比较两个 JSON 字符串是否相等。它会忽略 JSON 中的空白字符和键的顺序，只关注数据是否相同
 		})
 	}
 }
+
+/*
+mock的使用套路
+1.初始化控制器  也就是ctrl
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+2.创建模拟对象： 也就是模拟service中的user service
+3.设计调用模式
+	- 先调用EXPECT
+	- 调用同名方法,出入模拟的条件
+	- 制定返回值
+示例：
+usersvc.EXPECT().Signup(gomock.Any(),domain.User{...})  需要传入要测试的SigUp中的需要的条件
+
+注意:
+	设计了几个模拟调用,在使用的时候都要用上,而且顺序也要对上,不能多不能少,顺序也不能乱
+
+
+测试流程:
+1.准备gin.Engine并注册路由
+	sever := gin.Default()
+	uhdl:=NewUserHandler(tc.mock(ctl),nil)
+	uhdl.RegisterRoutes(server)
+2.准备请求
+	使用http标准库构建：req, err := http.NewRequest(http.MethodPost, "/users/signup",bytes.NewBuffer([]byte(tc.reqBody)))
+	req, err := http.NewRequest(请求方式，”请求的url“，”请求体“）
+3.准备相应Recorder  	resp := httptest.NewRecorder()
+	resp := httptest.NewRecorder()
+4.发起调用 			server.ServeHTTP(resp, req)
+	server.ServerHTTP(resp,req)
+5.比较Recorder中记录的响应
+	- 比较code
+	- 比较body
+assert.Equal(t, wantCode,resp.code)
+assert.Equal(t, wantBody, resp.Body.string())
+*/
