@@ -3,16 +3,25 @@ package ioc
 import (
 	"basic-go/webook/internal/service/sms"
 	"basic-go/webook/internal/service/sms/memory"
+	sratelimit "basic-go/webook/internal/service/sms/ratelimit"
 	"basic-go/webook/internal/service/sms/tencent"
+	"basic-go/webook/pkg/ratelimit"
+	"github.com/redis/go-redis/v9"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common/profile"
 	tencentSms "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111"
 	"os"
+	"time"
 )
 
-func InitSMSService() sms.Service {
+func InitSMSService(cmd redis.Cmdable) sms.Service {
 	// 可以方便的换内存 还是换阿里腾讯登sms服务
-	return memory.NewService()
+	//return memory.NewService()
+
+	// ratelimit的使用
+	svc := memory.NewService()
+	return sratelimit.NewRateLimitSMSService(svc, ratelimit.NewRedisSlidingWindowLimiter(cmd, time.Second, 3000))
+
 }
 
 func initTencentSMSService() sms.Service {

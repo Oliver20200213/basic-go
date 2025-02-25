@@ -37,7 +37,8 @@ func NewService(client *sms.Client, appId string, signName string) *Service {
 //腾讯云的参数args是 []*string
 //阿里云的参数args是 string， json串
 
-func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers ...string) error {
+// biz 直接代表的就是tplId
+func (s *Service) Send(ctx context.Context, biz string, args []string, numbers ...string) error {
 	//// 侵入式的写法（改了已有的代码，不推荐）需要用装饰器实现
 	//limited, err := s.limiter.Limit(ctx, "sms:tencent")
 	//if err != nil {
@@ -57,9 +58,9 @@ func (s *Service) Send(ctx context.Context, tplId string, args []string, numbers
 	//	return errors.New("no numbers provided")
 	//}
 	req := sms.NewSendSmsRequest()
-	req.SmsSdkAppId = s.appId          //短信SdkAppId在 [短信控制台] 添加应用后生成的实际SdkAppId
-	req.SignName = s.signName          //短信签名
-	req.TemplateId = ekit.ToPtr(tplId) //短信模板的id
+	req.SmsSdkAppId = s.appId        //短信SdkAppId在 [短信控制台] 添加应用后生成的实际SdkAppId
+	req.SignName = s.signName        //短信签名
+	req.TemplateId = ekit.ToPtr(biz) //短信模板的id
 	//需要将numbers转成切片
 	// 示例如：+8613711112222， 其中前面有一个+号 ，86为国家码，13711112222为手机号，最多不要超过200个手机号*/
 	req.PhoneNumberSet = s.toStringPtrSlice(numbers) //下发手机号码

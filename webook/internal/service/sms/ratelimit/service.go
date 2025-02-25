@@ -40,3 +40,24 @@ func (s *RateLimitSMSService) Send(ctx context.Context, tpl string, args []strin
 	// 你在这也可以加一些代码，新特性
 	return err
 }
+
+/*
+装饰器思路
+type RateLimitSMSService struct{
+	svc  sms.Service // 要装饰的功能
+	limiter  ratelimit.Limiter // 增加的功能
+}
+func(s *RateLimitSMSService)Send(ctx, tpl string,args []string, numbers ...string)error{
+	s.limiter 增加的限流功能
+	s.svc.Send 原来的send功能
+}
+
+补充：
+[]string和 ...string的区别
+[]string是一种数据类型，字符串的切片
+...string是一种语法糖，只能用于函数的参数声明
+两者底层都是[]string类型
+
+
+
+*/
