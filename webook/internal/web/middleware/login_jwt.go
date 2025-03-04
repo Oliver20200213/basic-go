@@ -93,7 +93,8 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			ctx.Header("x-jwt-token", tokenStr)
 		}
 
-		// set是向ctx中添加数据    value是获取数据ctx.Value("claims“)
+		// web框架中相同gin.Context： Set是向ctx中添加数据    Get是获取数据ctx.Get("claims“).(string)
+		// 如果是通用go程序context.Context：context.WithValue("token","xxxxx")向context.Context中添加数据, context.Value("token")获取数据
 		ctx.Set("claims", claims)
 	}
 }

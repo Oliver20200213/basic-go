@@ -20,6 +20,7 @@ type UserDao interface {
 	FindByPhone(ctx context.Context, phone string) (User, error)
 	FindById(ctx context.Context, id int64) (User, error)
 	UpdateById(ctx context.Context, entity User) error
+	FindByOpenId(ctx context.Context, openId string) (User, error)
 }
 
 type GORMUserDao struct {
@@ -52,6 +53,13 @@ func (dao *GORMUserDao) Insert(ctx context.Context, u User) error {
 	}
 	return err
 }
+
+func (dao *GORMUserDao) FindByOpenId(ctx context.Context, openId string) (User, error) {
+	var u User
+	err := dao.db.WithContext(ctx).Where("wechat_open_id=?", openId).First(&u).Error
+	return u, err
+}
+
 func (dao *GORMUserDao) FindByEmail(ctx context.Context, email string) (User, error) {
 	var u User
 	err := dao.db.WithContext(ctx).Where("email=?", email).First(&u).Error
@@ -87,6 +95,22 @@ type User struct {
 	//  需要判空，如果对null进行解引用（*phone）就会触发panic
 	// Phone *string
 
+	// 索引的最左匹配原则：
+	// 加入索引在<A,B,C>建好了
+	// WHERE 里面带了ABC， 可以用
+	// WHERE 里面没有A，就不能用
+	// A,AB,ABC都能命中，AC不能命中
+	// WHERE A = ?
+	// WHERE A = ? AND B = ?  或者WHERE B = ? AND A = ?
+	// WHERE A = ? AND B = ? AND C = ? ABC的顺序随便换
+
+	// 如果创建联合索引
+	// <unionid, openid> 单独使用openid查询的时候不会走索引
+	// <openid, unionid> 单独使用unionid查询的时候不会走索引
+
+	// 微信绑定的字段
+	WechatUnionId sql.NullString `gorm:"unique"`
+	WechatOpenId  sql.NullString `gorm:"unique"`
 	// 创建时间，毫秒数
 	Ctime int64
 	// 更新时间，毫秒数

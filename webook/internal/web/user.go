@@ -8,7 +8,6 @@ import (
 	regexp "github.com/dlclark/regexp2" //引入新的正则库替代标准库 这样引入可以使用regexp调用而不是regexp2
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"time"
 )
@@ -27,6 +26,7 @@ type UserHandler struct {
 	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
+	JwtHandler
 }
 
 func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
@@ -270,30 +270,31 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 
 }
 
-func (u *UserHandler) setJWTToken(ctx *gin.Context, uId int64) error {
-	//如何在JWT token中携带数据，比如要带userId
-	claims := UserClaims{
-		RegisteredClaims: jwt.RegisteredClaims{
-			//配置过期时间
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
-		},
-		Uid:       uId,
-		UserAgent: ctx.Request.UserAgent(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
-
-	//token.SigningString() 不使用key直接生成token
-	//更安全使用key生成token
-	tokenStr, err := token.SignedString([]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"))
-	if err != nil {
-		return err
-	}
-
-	//将token放到header中
-	ctx.Header("x-jwt-token", tokenStr) //将token放到header中
-	fmt.Println(tokenStr)
-	return nil
-}
+// 摘出去，可以让wechat登录能使用
+//func (u *UserHandler) setJWTToken(ctx *gin.Context, uId int64) error {
+//	//如何在JWT token中携带数据，比如要带userId
+//	claims := UserClaims{
+//		RegisteredClaims: jwt.RegisteredClaims{
+//			//配置过期时间
+//			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
+//		},
+//		Uid:       uId,
+//		UserAgent: ctx.Request.UserAgent(),
+//	}
+//	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+//
+//	//token.SigningString() 不使用key直接生成token
+//	//更安全使用key生成token
+//	tokenStr, err := token.SignedString([]byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"))
+//	if err != nil {
+//		return err
+//	}
+//
+//	//将token放到header中
+//	ctx.Header("x-jwt-token", tokenStr) //将token放到header中
+//	fmt.Println(tokenStr)
+//	return nil
+//}
 
 func (u *UserHandler) Login(ctx *gin.Context) {
 	type LoginReq struct {
@@ -403,13 +404,14 @@ func (u *UserHandler) Profile(ctx *gin.Context) {
 	)
 }
 
-type UserClaims struct {
-	jwt.RegisteredClaims
-	//声明自己要放放进token里面的数据
-	Uid int64
-	//自己可以随便加，但是最好不要加敏感数据例如password 权限之类的信息
-	UserAgent string
-}
+// 将UserClaims也摘到jwt.go中
+//type UserClaims struct {
+//	jwt.RegisteredClaims
+//	//声明自己要放放进token里面的数据
+//	Uid int64
+//	//自己可以随便加，但是最好不要加敏感数据例如password 权限之类的信息
+//	UserAgent string
+//}
 
 func (u *UserHandler) ProfileJWTV1(ctx *gin.Context) {
 	type Profile struct {

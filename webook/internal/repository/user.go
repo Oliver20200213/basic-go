@@ -23,6 +23,7 @@ type UserRepository interface {
 	FindByPhone(ctx context.Context, phone string) (domain.User, error)
 	FindById(ctx context.Context, id int64) (domain.User, error)
 	UpdateNonZeroFields(ctx context.Context, u domain.User) error
+	FindByWechat(ctx context.Context, openId string) (domain.User, error)
 }
 
 type CacheUserRepository struct {
@@ -114,6 +115,14 @@ func (r *CacheUserRepository) FindById(ctx context.Context, id int64) (domain.Us
 	return u, err
 }
 
+func (r *CacheUserRepository) FindByWechat(ctx context.Context, openId string) (domain.User, error) {
+	u, err := r.dao.FindByOpenId(ctx, openId)
+	if err != nil {
+		return domain.User{}, err
+	}
+	return r.entityToDomain(u), nil
+}
+
 // 注意：使用缓存的两个核心问题：第一个是一致性问题， 第二个是我的缓存崩了
 
 func (r *CacheUserRepository) domainToEntity(u domain.User) dao.User {
@@ -133,6 +142,14 @@ func (r *CacheUserRepository) domainToEntity(u domain.User) dao.User {
 		AboutMe:  u.AboutMe,
 		Birthday: u.Birthday.UnixMilli(), //将time.Time转为int64
 		Ctime:    u.Ctime.UnixMilli(),
+		WechatOpenId: sql.NullString{
+			String: u.WeChatInfo.OpenId,
+			Valid:  u.WeChatInfo.OpenId != "",
+		},
+		WechatUnionId: sql.NullString{
+			String: u.WeChatInfo.UnionId,
+			Valid:  u.WeChatInfo.UnionId != "",
+		},
 	}
 }
 
@@ -146,6 +163,10 @@ func (r *CacheUserRepository) entityToDomain(u dao.User) domain.User {
 		AboutMe:  u.AboutMe,
 		Birthday: time.UnixMilli(u.Birthday), //将int64转为time.Time
 		Ctime:    time.UnixMilli(u.Ctime),
+		WeChatInfo: domain.WeChatInfo{
+			UnionId: u.WechatUnionId.String,
+			OpenId:  u.WechatOpenId.String,
+		},
 	}
 }
 

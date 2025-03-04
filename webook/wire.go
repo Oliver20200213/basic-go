@@ -33,8 +33,10 @@ func InitWebServer() *gin.Engine {
 		// 基于内存的实现
 		//memory.NewService,
 		ioc.InitSMSService,
+		ioc.InitWechatService,
 
 		web.NewUserHandler,
+		web.NewOAuth2WechatHandler,
 
 		// 中间件怎么办
 		// 注册路由怎么办

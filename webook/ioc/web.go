@@ -4,6 +4,7 @@ import (
 	"basic-go/webook/internal/web"
 	"basic-go/webook/internal/web/middleware"
 	"basic-go/webook/pkg/ginx/middlewares/ratelimit"
+	ratelimite2 "basic-go/webook/pkg/ratelimit"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -11,10 +12,12 @@ import (
 	"time"
 )
 
-func InitWebServer(mdls []gin.HandlerFunc, UserHdl *web.UserHandler) *gin.Engine {
+func InitWebServer(mdls []gin.HandlerFunc, UserHdl *web.UserHandler,
+	oauth2WechatHandler *web.OAuth2WechatHandler) *gin.Engine {
 	server := gin.Default()
 	server.Use(mdls...)
 	UserHdl.RegisterRoutes(server)
+	oauth2WechatHandler.RegisterRoutes(server)
 	return server
 }
 
@@ -54,10 +57,13 @@ func loginJWTHdl() gin.HandlerFunc {
 		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login").
 		IgnorePaths("/users/login_sms/code/send").
+		IgnorePaths("/oauth2/wechat/authurl").
+		IgnorePaths("/oauth2/wechat/callback").
 		IgnorePaths("/users/login_sms").
 		Build()
 }
 
 func rateLimitHdl(redisClient redis.Cmdable) gin.HandlerFunc {
-	return ratelimit.NewBuilder(redisClient, time.Minute, 100).Build()
+	limiter := ratelimite2.NewRedisSlidingWindowLimiter(redisClient, time.Second, 3000)
+	return ratelimit.NewBuilder(limiter).Build()
 }

@@ -7,6 +7,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+/*
+增加静态token认证，内部短信的调用
+*/
+
 type SMSService struct {
 	svc sms.Service
 	key string
@@ -23,7 +27,7 @@ func NewSMSService(svc sms.Service, key string) sms.Service {
 func (s *SMSService) Send(ctx context.Context, biz string,
 	args []string, numbers ...string) error {
 
-	var tc Claims
+	var tc TokenClaims
 	// 在这里进行权限校验
 	// 如果我这里能解析成功，说明就是对应的业务方
 	// 解析对了没有err 就说明token是我发的
@@ -39,7 +43,7 @@ func (s *SMSService) Send(ctx context.Context, biz string,
 	return s.svc.Send(ctx, tc.Tpl, args, numbers...)
 }
 
-type Claims struct {
+type TokenClaims struct {
 	jwt.RegisteredClaims
 	Tpl string
 }
@@ -61,6 +65,17 @@ token，是一个*jwt.Token对象，包含了jwt的各个部分（Header，Claim
 
 jwt token的生成
 先生成jwt.Token对象
+type TokenClaims struct{
+	Tpl string
+	jwt.RegisteredClaims
+}
+claims := TokenClaims{
+	Tpl:"短信服务商提供的tpl"
+	RegisteredClaims:jwt.RegisteredClaims{
+		// 内部使用可以将token设置为不过期，方式1：不设置ExpiresAt,过期时间，方式2：设置一个非常遥远的过期时间
+		ExpiresAt:jwt.NewNumericDate(time.Now().Add(time.Hour*24*365*100))
+	}
+}
 token:= jwt.NewWithClaims(jwt.SigningMethodHS512,claims)
 jwt.SigningMethodHS512：加密算法
 claims：jwt.Claims的结构体实例
