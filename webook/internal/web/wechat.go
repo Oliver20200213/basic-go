@@ -4,19 +4,32 @@ import (
 	"basic-go/webook/internal/service"
 	"basic-go/webook/internal/service/oauth2/wechat"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
+	uuid "github.com/lithammer/shortuuid/v4"
 	"net/http"
+	"time"
 )
 
 type OAuth2WechatHandler struct {
 	svc     wechat.Service
 	userSvc service.UserService
 	JwtHandler
+	stateKey []byte
+	cfg      Config
 }
 
-func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService) *OAuth2WechatHandler {
+type Config struct {
+	Secure bool
+	//stateKey []byte 也可以将stateKey放到这里
+}
+
+func NewOAuth2WechatHandler(svc wechat.Service, userSvc service.UserService,
+	cfg Config) *OAuth2WechatHandler {
 	return &OAuth2WechatHandler{
-		svc:     svc,
-		userSvc: userSvc,
+		svc:      svc,
+		userSvc:  userSvc,
+		stateKey: []byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"),
+		cfg:      cfg,
 	}
 }
 
@@ -27,13 +40,36 @@ func (h *OAuth2WechatHandler) RegisterRoutes(server *gin.Engine) {
 }
 
 func (h *OAuth2WechatHandler) AuthURL(ctx *gin.Context) {
-	url, err := h.svc.AuthURL(ctx)
+	state := uuid.New()
+	url, err := h.svc.AuthURL(ctx, state)
+	// 要在这里 把state存好
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "构造扫码登录URL失败",
 		})
 	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, StateClaims{
+		State: state,
+		RegisteredClaims: jwt.RegisteredClaims{
+			// 过期时间为你预期中一个用户完成登录的时间
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 10)),
+		},
+	})
+	tokenStr, err := token.SignedString(h.stateKey)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+	}
+
+	// 详细说明见下面注释
+	ctx.SetCookie("jwt-state", tokenStr, 600,
+		"/oauth2/wechat/callback",
+		"", h.cfg.Secure, true) // 正常线上要将secure设置为true
+
 	ctx.JSON(http.StatusOK, Result{
 		Data: url,
 	})
@@ -46,14 +82,52 @@ func (h *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 	// 验证微信的code
 	code := ctx.Query("code")
 	state := ctx.Query("state")
+	// 校验一下获取到的state
+	ck, err := ctx.Cookie("jwt-state")
+	if err != nil {
+		// 有人搞事
+		// 做好监控
+		// 做好日志记录
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+	}
+
 	info, err := h.svc.VerifyCode(ctx, code, state)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误", // 严格的来说得区分一下err，是不是攻击者伪造的code
+			Code: 4,
+			Msg:  "登录失败", // 严格的来说得区分一下err，是不是攻击者伪造的code
 		})
+		// 做好监控
+		// 做好日志记录
 		return
 	}
+
+	var sc StateClaims
+	token, err := jwt.ParseWithClaims(ck, &sc, func(token *jwt.Token) (interface{}, error) {
+		return h.stateKey, nil
+	})
+	if err != nil || !token.Valid {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "登录失败",
+		})
+		// 做好监控
+		// 做好日志记录
+		return
+	}
+	if sc.State != state {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 4,
+			Msg:  "登录失败",
+		})
+		// 做好监控
+		// 做好日志记录
+		return
+	}
+
 	// 这里怎么办，设置jwt token（之前是在userhandler下面的需要摘出来）
 	// uid从哪来？
 	// 从userService里面拿uid
@@ -76,6 +150,11 @@ func (h *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 		Msg: "OK",
 	})
 
+}
+
+type StateClaims struct {
+	State string
+	jwt.RegisteredClaims
 }
 
 // 另一种设计思路，从url的路径参数中获取是使用的哪个登录，然后再分发
@@ -127,4 +206,35 @@ openid和unionid的区别
 openid在当前应用中唯一
 unionid在公司中唯一
 在某个应用内使用openid，夸应用使用unionid
+
+
+
+
+"jwt-state":
+含义: Cookie 的名称。
+解释: 这个参数指定了 Cookie 的名称为 "jwt-state"。
+
+tokenStr:
+含义: Cookie 的值。
+解释: 这个参数是 Cookie 的实际内容，通常是一个字符串。在这里，tokenStr 是一个变量，表示要存储在 Cookie 中的 JWT（JSON Web Token）或其他类型的令牌。
+
+600:
+含义: Cookie 的过期时间（以秒为单位）。
+解释: 这个参数指定了 Cookie 的有效期为 600 秒（即 10 分钟）。超过这个时间后，Cookie 将自动过期。
+
+"/oauth2/wechat/callback":
+含义: Cookie 的路径。
+解释: 这个参数指定了 Cookie 的有效路径。只有在这个路径下的请求才会携带这个 Cookie。在这里，路径是 "/oauth2/wechat/callback"，意味着只有在这个路径下的请求才会包含这个 Cookie。
+
+"":
+含义: Cookie 的域名。
+解释: 这个参数指定了 Cookie 的有效域名。如果为空字符串，则表示当前域名。你可以将其设置为特定的域名，以限制 Cookie 只在那个域名下有效。
+
+false:
+含义: 是否仅通过 HTTPS 传输 Cookie。
+解释: 这个参数指定了 Cookie 是否只能通过 HTTPS 协议传输。如果设置为 true，则 Cookie 只能在 HTTPS 连接中传输；如果设置为 false，则 Cookie 可以通过 HTTP 或 HTTPS 传输。
+
+true:
+含义: 是否禁止客户端 JavaScript 访问 Cookie。
+解释: 这个参数指定了 Cookie 是否启用 HttpOnly 标志。如果设置为 true，则客户端 JavaScript 无法访问这个 Cookie，这有助于防止 XSS（跨站脚本攻击）攻击
 */

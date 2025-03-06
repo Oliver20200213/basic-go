@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	uuid "github.com/lithammer/shortuuid/v4"
 	"net/http"
 	"net/url"
 )
@@ -14,7 +13,7 @@ import (
 var redirectURI = url.PathEscape("https://www.meoying.com/oauth2/wechat/callback")
 
 type Service interface {
-	AuthURL(ctx context.Context) (string, error)
+	AuthURL(ctx context.Context, state string) (string, error)
 	VerifyCode(ctx context.Context, code string, state string) (domain.WeChatInfo, error)
 }
 
@@ -42,10 +41,11 @@ func NewServiceV1(appId, appSecret string, client *http.Client) Service {
 	}
 }
 
-func (s *service) AuthURL(ctx context.Context) (string, error) {
+func (s *service) AuthURL(ctx context.Context, state string) (string, error) {
 	// 构建微信扫码认证的url
 	const urlPattern = "https://open.weixin.qq.com/connect/qrconnect?appid=%s&redirect_uri=%s&response_type=code&scope=snsapi_login&state=%s#wechat_redirect"
-	state := uuid.New()
+	//state := uuid.New()
+
 	return fmt.Sprintf(urlPattern, s.appId, redirectURI, state), nil
 }
 
