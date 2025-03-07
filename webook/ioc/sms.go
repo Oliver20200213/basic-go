@@ -4,6 +4,7 @@ import (
 	"basic-go/webook/internal/service/sms"
 	"basic-go/webook/internal/service/sms/memory"
 	sratelimit "basic-go/webook/internal/service/sms/ratelimit"
+	"basic-go/webook/internal/service/sms/retryable"
 	"basic-go/webook/internal/service/sms/tencent"
 	"basic-go/webook/pkg/ratelimit"
 	"github.com/redis/go-redis/v9"
@@ -19,8 +20,9 @@ func InitSMSService(cmd redis.Cmdable) sms.Service {
 	//return memory.NewService()
 
 	// ratelimit的使用
-	svc := memory.NewService()
-	return sratelimit.NewRateLimitSMSService(svc, ratelimit.NewRedisSlidingWindowLimiter(cmd, time.Second, 3000))
+	svc := sratelimit.NewRateLimitSMSService(memory.NewService(), ratelimit.NewRedisSlidingWindowLimiter(cmd, time.Second, 3000))
+	// 增加重试功能
+	return retryable.NewService(svc, 3)
 
 }
 

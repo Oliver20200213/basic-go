@@ -37,6 +37,7 @@ func InitWebServer() *gin.Engine {
 
 		web.NewUserHandler,
 		web.NewOAuth2WechatHandler,
+		ioc.NewWechatHandlerConfig,
 
 		// 中间件怎么办
 		// 注册路由怎么办

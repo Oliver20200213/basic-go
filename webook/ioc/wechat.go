@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"basic-go/webook/internal/service/oauth2/wechat"
+	"basic-go/webook/internal/web"
 	"os"
 )
 
@@ -16,4 +17,10 @@ func InitWechatService() wechat.Service {
 	}
 
 	return wechat.NewService(appId, appKey)
+}
+
+func NewWechatHandlerConfig() web.WechatHandlerConfig {
+	return web.WechatHandlerConfig{
+		Secure: false,
+	}
 }

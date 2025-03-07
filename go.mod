@@ -18,6 +18,7 @@ require (
 	github.com/google/wire v0.6.0
 	github.com/gorilla/sessions v1.2.2
 	github.com/lithammer/shortuuid/v4 v4.2.0
+	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/stretchr/testify v1.9.0
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.1069
