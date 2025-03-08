@@ -35,8 +35,8 @@ func corsHdl() gin.HandlerFunc {
 		//AllowOrigins: []string{"*"},  允许所有请求，不建议这种方式，之前前端是可以的现在前端在严格模式下不生效
 		//AllowMethods: []string{"POST","GET"}, //如果不写，默认则是都支持
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"x-jwt-token"}, //不加这个前端是拿不到x-jwt-token的，意思是我给你的你才能拿到
-		AllowCredentials: true,                    //是否允许你带cookie之类的东西
+		ExposeHeaders:    []string{"x-jwt-token", "x-refresh-token"}, //不加这个前端是拿不到x-jwt-token的，意思是我给你的你才能拿到
+		AllowCredentials: true,                                       //是否允许你带cookie之类的东西
 
 		//可以根据origin进行动态判断(注销掉上面的AllowOrigins配置，二选一配置)
 		AllowOriginFunc: func(origin string) bool {
@@ -56,6 +56,7 @@ func loginJWTHdl() gin.HandlerFunc {
 	return middleware.NewLoginJWTMiddlewareBuilder().
 		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login").
+		IgnorePaths("/users/refresh_token").
 		IgnorePaths("/users/login_sms/code/send").
 		IgnorePaths("/oauth2/wechat/authurl").
 		IgnorePaths("/oauth2/wechat/callback").

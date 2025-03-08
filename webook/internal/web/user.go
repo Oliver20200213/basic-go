@@ -8,6 +8,7 @@ import (
 	regexp "github.com/dlclark/regexp2" //引入新的正则库替代标准库 这样引入可以使用regexp调用而不是regexp2
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"net/http"
 	"time"
 )
@@ -47,6 +48,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		emailExp:    emailExp,
 		passwordExp: passwordExp,
 		codeSvc:     codeSvc,
+		JwtHandler:  NewJwtHandler(),
 	}
 }
 
@@ -72,6 +74,38 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	// POST "/login/sms/code" 校验验证码
 	ug.POST("/login_sms/code/send", u.SendLoginSMSCode)
 	ug.POST("/login_sms", u.LoginSms)
+	ug.POST("/refresh_token", u.RefreshToken)
+}
+
+// RefreshToken 可以同时刷新长短token， 用 redis 来记录是否有效，即 refresh_token是一次性的
+// 也可以参考登录校验部分，比较User-Agent来增强安全性
+func (u *UserHandler) RefreshToken(ctx *gin.Context) {
+	// 如果在调用RefreshToken的时候超时了怎么办
+	// 也就是旧的access_token已经无效，新的没有获得
+	// 没有办法 只能重新登录
+
+	// 正常访问的时候Authorization里面应该是短token,access_token
+	// 当访问该接口的时候Authorization里面应该是长token,refresh_token
+	// 使用refresh_token来刷新access_token
+	refreshToken := ExtractToken(ctx)
+	var rc RefreshClaims
+	token, err := jwt.ParseWithClaims(refreshToken, &rc, func(token *jwt.Token) (interface{}, error) {
+		return u.rtKey, nil
+	})
+	if err != nil || !token.Valid {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+	// 搞个新的access_token
+	err = u.setJWTToken(ctx, rc.Uid)
+	if err != nil {
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+	}
+
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "access token 刷新成功",
+	})
+
 }
 
 func (u *UserHandler) LoginSms(ctx *gin.Context) {
@@ -121,6 +155,15 @@ func (u *UserHandler) LoginSms(ctx *gin.Context) {
 
 	// 用户id要从那里获取
 	if err = u.setJWTToken(ctx, user.Id); err != nil {
+		// 记录日志
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	if err = u.setRefreshToken(ctx, user.Id); err != nil {
+		// 需要记录日志
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误",
@@ -261,6 +304,10 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	//token := jwt.New(jwt.SigningMethodHS512)
 
 	if err = u.setJWTToken(ctx, user.Id); err != nil {
+		ctx.String(http.StatusOK, "系统错误")
+		return
+	}
+	if err = u.setRefreshToken(ctx, user.Id); err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}

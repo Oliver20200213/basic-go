@@ -128,6 +128,15 @@ func (h *OAuth2WechatHandler) Callback(ctx *gin.Context) {
 			Msg:  "系统错误",
 		})
 	}
+
+	err = h.setRefreshToken(ctx, u.Id)
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+	}
+
 	ctx.JSON(http.StatusOK, Result{
 		Msg: "OK",
 	})

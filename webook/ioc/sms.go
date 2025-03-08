@@ -24,6 +24,8 @@ func InitSMSService(cmd redis.Cmdable) sms.Service {
 	// 增加重试功能
 	return retryable.NewService(svc, 3)
 
+	//return memory.NewService()
+
 }
 
 func initTencentSMSService() sms.Service {
