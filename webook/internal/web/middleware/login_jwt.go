@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"basic-go/webook/internal/web"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 )
 
@@ -11,10 +13,13 @@ import (
 
 type LoginJWTMiddlewareBuilder struct {
 	paths []string
+	cmd   redis.Cmdable
 }
 
-func NewLoginJWTMiddlewareBuilder() *LoginJWTMiddlewareBuilder {
-	return &LoginJWTMiddlewareBuilder{}
+func NewLoginJWTMiddlewareBuilder(cmd redis.Cmdable) *LoginJWTMiddlewareBuilder {
+	return &LoginJWTMiddlewareBuilder{
+		cmd: cmd,
+	}
 }
 
 // IgnorePaths 中间方法，用于构建部分
@@ -78,6 +83,19 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 			return
 		}
 
+		// 这里可以考虑一下降级操作，如果redis崩了，可以不进行严格的校验是不是已经主动退出登录了，直接通过
+		//if redis 崩了{
+		//	return
+		//}
+
+		// 查看redis中是否存储有当前的ssid（记录已经退出的ssid）
+		cnt, err := l.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", claims.Ssid)).Result()
+		if err != nil || cnt > 0 {
+			// 要么 redis 有问题，要么已经退出登录了
+			ctx.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+
 		// 能不能检测短token过期了，搞个新的？
 		// 这就和自动刷新没区别了，功能上是可以的，
 		// 但是这所以使用长短token，是因为我们认为短toke被频繁使用个，更加容易泄密，
@@ -105,3 +123,11 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		ctx.Set("claims", claims)
 	}
 }
+
+/*
+面试降级策略
+-  在redis没有崩溃的时候，就会严格的执行ssid的校验，判定用户有没有主动退出登录
+- 如果redis崩溃，就不会严格的执行ssid的校验
+
+相比退出登录的少数情况，大多数已经登录的用户并不会应为redis不可用而全部无法通过登录校验
+*/

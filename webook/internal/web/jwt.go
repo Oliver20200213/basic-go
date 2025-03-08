@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 	"strings"
 	"time"
 )
@@ -23,14 +24,15 @@ func NewJwtHandler() JwtHandler {
 }
 
 // 为什么这里不用指针，为了userhandler和wechathandler中组合使用
-func (h JwtHandler) setJWTToken(ctx *gin.Context, uId int64) error {
+func (h JwtHandler) setJWTToken(ctx *gin.Context, uId int64, ssid string) error {
 	//如何在JWT token中携带数据，比如要带userId
 	claims := UserClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			//配置过期时间
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 30)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
 		},
 		Uid:       uId,
+		Ssid:      ssid,
 		UserAgent: ctx.Request.UserAgent(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
@@ -49,14 +51,15 @@ func (h JwtHandler) setJWTToken(ctx *gin.Context, uId int64) error {
 }
 
 // 长短token
-func (h JwtHandler) setRefreshToken(ctx *gin.Context, uId int64) error {
+func (h JwtHandler) setRefreshToken(ctx *gin.Context, uId int64, ssid string) error {
 	//如何在JWT token中携带数据，比如要带userId
 	claims := RefreshClaims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			//配置过期时间
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 7)),
 		},
-		Uid: uId,
+		Uid:  uId,
+		Ssid: ssid,
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 
@@ -83,15 +86,27 @@ func ExtractToken(ctx *gin.Context) string {
 	return segs[1]
 }
 
+func (h JwtHandler) setLoginToken(ctx *gin.Context, uId int64) error {
+	ssid := uuid.New().String()
+	err := h.setJWTToken(ctx, uId, ssid)
+	if err != nil {
+		return err
+	}
+	err = h.setRefreshToken(ctx, uId, ssid)
+	return err
+}
+
 type RefreshClaims struct {
-	Uid int64
+	Uid  int64
+	Ssid string
 	jwt.RegisteredClaims
 }
 
 type UserClaims struct {
 	jwt.RegisteredClaims
 	//声明自己要放放进token里面的数据
-	Uid int64
+	Uid  int64
+	Ssid string
 	//自己可以随便加，但是最好不要加敏感数据例如password 权限之类的信息
 	UserAgent string
 }

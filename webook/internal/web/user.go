@@ -9,6 +9,7 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 	"time"
 )
@@ -28,9 +29,10 @@ type UserHandler struct {
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
 	JwtHandler
+	cmd redis.Cmdable
 }
 
-func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService, cmd redis.Cmdable) *UserHandler {
 	const (
 		emailRegexPattern = "^\\w+(-+.\\w+)*@\\w+(-.\\w+)*.\\w+(-.\\w+)*$"
 		//使用``不用进行转义
@@ -49,6 +51,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService) *UserH
 		passwordExp: passwordExp,
 		codeSvc:     codeSvc,
 		JwtHandler:  NewJwtHandler(),
+		cmd:         cmd,
 	}
 }
 
@@ -66,6 +69,7 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/signup", u.SignUp)
 	//ug.POST("/login", u.Login)
 	ug.POST("/login", u.LoginJWT)
+	ug.POST("/logout", u.Logout)
 	ug.POST("/edit", u.Edit)
 	//ug.GET("/profile", u.ProfileJWT)
 	ug.GET("/profile", u.ProfileJWTV1)
@@ -75,6 +79,34 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 	ug.POST("/login_sms/code/send", u.SendLoginSMSCode)
 	ug.POST("/login_sms", u.LoginSms)
 	ug.POST("/refresh_token", u.RefreshToken)
+}
+
+func (u *UserHandler) LogoutJWT(ctx *gin.Context) {
+	// 将长短token设置为非法值
+	ctx.Header("x-jwt-token", "")
+	ctx.Header("x-refresh-token", "")
+
+	c, _ := ctx.Get("claims")
+	claims, ok := c.(*UserClaims)
+	if !ok {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "系统错误",
+		})
+		return
+	}
+	err := u.cmd.Set(ctx, fmt.Sprintf("users:ssid:%s", claims.Ssid), "", time.Hour*7*24).Err()
+	if err != nil {
+		ctx.JSON(http.StatusOK, Result{
+			Code: 5,
+			Msg:  "退出登录失败",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, Result{
+		Msg: "退出登录成功",
+	})
 }
 
 // RefreshToken 可以同时刷新长短token， 用 redis 来记录是否有效，即 refresh_token是一次性的
@@ -96,8 +128,17 @@ func (u *UserHandler) RefreshToken(ctx *gin.Context) {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
+
+	// 验证ssid
+	cnt, err := u.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", rc.Ssid)).Result()
+	if err != nil || cnt > 0 {
+		// 要么redis有问题，要么已经退出登录了
+		ctx.AbortWithStatus(http.StatusUnauthorized)
+		return
+	}
+
 	// 搞个新的access_token
-	err = u.setJWTToken(ctx, rc.Uid)
+	err = u.setJWTToken(ctx, rc.Uid, rc.Ssid)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 	}
@@ -154,16 +195,7 @@ func (u *UserHandler) LoginSms(ctx *gin.Context) {
 	}
 
 	// 用户id要从那里获取
-	if err = u.setJWTToken(ctx, user.Id); err != nil {
-		// 记录日志
-		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误",
-		})
-		return
-	}
-	if err = u.setRefreshToken(ctx, user.Id); err != nil {
-		// 需要记录日志
+	if err = u.setLoginToken(ctx, user.Id); err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误",
@@ -303,14 +335,11 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	////生成一个JWT token（不带数据的）
 	//token := jwt.New(jwt.SigningMethodHS512)
 
-	if err = u.setJWTToken(ctx, user.Id); err != nil {
+	if err = u.setLoginToken(ctx, user.Id); err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
-	if err = u.setRefreshToken(ctx, user.Id); err != nil {
-		ctx.String(http.StatusOK, "系统错误")
-		return
-	}
+
 	ctx.String(http.StatusOK, "登录成功")
 	fmt.Println(user)
 	return
@@ -384,6 +413,7 @@ func (u *UserHandler) Login(ctx *gin.Context) {
 
 }
 func (u *UserHandler) Logout(ctx *gin.Context) {
+	// session的退出登录
 	sess := sessions.Default(ctx)
 	sess.Options(sessions.Options{
 		MaxAge: -1, //maxage配置成小于表示cookie过期,同时还表示redis中key和value的过期时间
