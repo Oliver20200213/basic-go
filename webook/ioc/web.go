@@ -2,6 +2,7 @@ package ioc
 
 import (
 	"basic-go/webook/internal/web"
+	ijwt "basic-go/webook/internal/web/jwt"
 	"basic-go/webook/internal/web/middleware"
 	"basic-go/webook/pkg/ginx/middlewares/ratelimit"
 	ratelimite2 "basic-go/webook/pkg/ratelimit"
@@ -21,10 +22,10 @@ func InitWebServer(mdls []gin.HandlerFunc, UserHdl *web.UserHandler,
 	return server
 }
 
-func InitMiddlewares(redisClient redis.Cmdable) []gin.HandlerFunc {
+func InitMiddlewares(redisClient redis.Cmdable, jwtHandler ijwt.Handler) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		corsHdl(),
-		loginJWTHdl(),
+		loginJWTHdl(jwtHandler),
 		rateLimitHdl(redisClient),
 	}
 }
@@ -52,8 +53,8 @@ func corsHdl() gin.HandlerFunc {
 	})
 }
 
-func loginJWTHdl() gin.HandlerFunc {
-	return middleware.NewLoginJWTMiddlewareBuilder().
+func loginJWTHdl(jwtHandler ijwt.Handler) gin.HandlerFunc {
+	return middleware.NewLoginJWTMiddlewareBuilder(jwtHandler).
 		IgnorePaths("/users/signup").
 		IgnorePaths("/users/login").
 		IgnorePaths("/users/refresh_token").

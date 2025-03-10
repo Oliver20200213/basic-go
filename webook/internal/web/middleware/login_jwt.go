@@ -1,11 +1,9 @@
 package middleware
 
 import (
-	"basic-go/webook/internal/web"
-	"fmt"
+	ijwt "basic-go/webook/internal/web/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/redis/go-redis/v9"
 	"net/http"
 )
 
@@ -13,12 +11,12 @@ import (
 
 type LoginJWTMiddlewareBuilder struct {
 	paths []string
-	cmd   redis.Cmdable
+	ijwt.Handler
 }
 
-func NewLoginJWTMiddlewareBuilder(cmd redis.Cmdable) *LoginJWTMiddlewareBuilder {
+func NewLoginJWTMiddlewareBuilder(jwtHandler ijwt.Handler) *LoginJWTMiddlewareBuilder {
 	return &LoginJWTMiddlewareBuilder{
-		cmd: cmd,
+		Handler: jwtHandler,
 	}
 }
 
@@ -54,8 +52,8 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		//}
 
 		// 改为长短token
-		tokenStr := web.ExtractToken(ctx)
-		claims := &web.UserClaims{}
+		tokenStr := l.ExtractToken(ctx)
+		claims := &ijwt.UserClaims{}
 		//ParseWithClaims里面一定要传入claims指针
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(token *jwt.Token) (interface{}, error) {
 			return []byte("QAonYNt3DpoEojWkzJruRYmigFjmfn90"), nil
@@ -89,8 +87,8 @@ func (l *LoginJWTMiddlewareBuilder) Build() gin.HandlerFunc {
 		//}
 
 		// 查看redis中是否存储有当前的ssid（记录已经退出的ssid）
-		cnt, err := l.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", claims.Ssid)).Result()
-		if err != nil || cnt > 0 {
+		err = l.CheckSession(ctx, claims.Ssid)
+		if err != nil {
 			// 要么 redis 有问题，要么已经退出登录了
 			ctx.AbortWithStatus(http.StatusUnauthorized)
 			return

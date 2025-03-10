@@ -3,6 +3,7 @@ package web
 import (
 	"basic-go/webook/internal/domain"
 	"basic-go/webook/internal/service"
+	ijwt "basic-go/webook/internal/web/jwt"
 	"errors"
 	"fmt"
 	regexp "github.com/dlclark/regexp2" //引入新的正则库替代标准库 这样引入可以使用regexp调用而不是regexp2
@@ -28,11 +29,12 @@ type UserHandler struct {
 	codeSvc     service.CodeService
 	emailExp    *regexp.Regexp
 	passwordExp *regexp.Regexp
-	JwtHandler
+	ijwt.Handler
 	cmd redis.Cmdable
 }
 
-func NewUserHandler(svc service.UserService, codeSvc service.CodeService, cmd redis.Cmdable) *UserHandler {
+func NewUserHandler(svc service.UserService, codeSvc service.CodeService,
+	cmd redis.Cmdable, jwtHandler ijwt.Handler) *UserHandler {
 	const (
 		emailRegexPattern = "^\\w+(-+.\\w+)*@\\w+(-.\\w+)*.\\w+(-.\\w+)*$"
 		//使用``不用进行转义
@@ -50,7 +52,7 @@ func NewUserHandler(svc service.UserService, codeSvc service.CodeService, cmd re
 		emailExp:    emailExp,
 		passwordExp: passwordExp,
 		codeSvc:     codeSvc,
-		JwtHandler:  NewJwtHandler(),
+		Handler:     jwtHandler,
 		cmd:         cmd,
 	}
 }
@@ -82,20 +84,7 @@ func (u *UserHandler) RegisterRoutes(server *gin.Engine) {
 }
 
 func (u *UserHandler) LogoutJWT(ctx *gin.Context) {
-	// 将长短token设置为非法值
-	ctx.Header("x-jwt-token", "")
-	ctx.Header("x-refresh-token", "")
-
-	c, _ := ctx.Get("claims")
-	claims, ok := c.(*UserClaims)
-	if !ok {
-		ctx.JSON(http.StatusOK, Result{
-			Code: 5,
-			Msg:  "系统错误",
-		})
-		return
-	}
-	err := u.cmd.Set(ctx, fmt.Sprintf("users:ssid:%s", claims.Ssid), "", time.Hour*7*24).Err()
+	err := u.Handler.ClearToken(ctx)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
@@ -103,9 +92,8 @@ func (u *UserHandler) LogoutJWT(ctx *gin.Context) {
 		})
 		return
 	}
-
 	ctx.JSON(http.StatusOK, Result{
-		Msg: "退出登录成功",
+		Msg: "退出登录OK",
 	})
 }
 
@@ -119,10 +107,10 @@ func (u *UserHandler) RefreshToken(ctx *gin.Context) {
 	// 正常访问的时候Authorization里面应该是短token,access_token
 	// 当访问该接口的时候Authorization里面应该是长token,refresh_token
 	// 使用refresh_token来刷新access_token
-	refreshToken := ExtractToken(ctx)
-	var rc RefreshClaims
+	refreshToken := u.ExtractToken(ctx)
+	var rc ijwt.RefreshClaims
 	token, err := jwt.ParseWithClaims(refreshToken, &rc, func(token *jwt.Token) (interface{}, error) {
-		return u.rtKey, nil
+		return ijwt.RtKey, nil
 	})
 	if err != nil || !token.Valid {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
@@ -130,15 +118,14 @@ func (u *UserHandler) RefreshToken(ctx *gin.Context) {
 	}
 
 	// 验证ssid
-	cnt, err := u.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", rc.Ssid)).Result()
-	if err != nil || cnt > 0 {
-		// 要么redis有问题，要么已经退出登录了
+	err = u.CheckSession(ctx, rc.Ssid)
+	if err != nil {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 		return
 	}
 
 	// 搞个新的access_token
-	err = u.setJWTToken(ctx, rc.Uid, rc.Ssid)
+	err = u.SetJWTToken(ctx, rc.Uid, rc.Ssid)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
 	}
@@ -195,7 +182,7 @@ func (u *UserHandler) LoginSms(ctx *gin.Context) {
 	}
 
 	// 用户id要从那里获取
-	if err = u.setLoginToken(ctx, user.Id); err != nil {
+	if err = u.SetLoginToken(ctx, user.Id); err != nil {
 		ctx.JSON(http.StatusOK, Result{
 			Code: 5,
 			Msg:  "系统错误",
@@ -335,7 +322,7 @@ func (u *UserHandler) LoginJWT(ctx *gin.Context) {
 	////生成一个JWT token（不带数据的）
 	//token := jwt.New(jwt.SigningMethodHS512)
 
-	if err = u.setLoginToken(ctx, user.Id); err != nil {
+	if err = u.SetLoginToken(ctx, user.Id); err != nil {
 		ctx.String(http.StatusOK, "系统错误")
 		return
 	}
@@ -440,7 +427,7 @@ func (u *UserHandler) ProfileJWT(ctx *gin.Context) {
 	//	return
 	//}
 	//ok代表是不是*UserClaims
-	claims, ok := c.(*UserClaims)
+	claims, ok := c.(*ijwt.UserClaims)
 	if !ok {
 		//可以考虑监控住这里
 		ctx.String(http.StatusOK, "系统错误")
@@ -498,7 +485,7 @@ func (u *UserHandler) ProfileJWTV1(ctx *gin.Context) {
 		Birthday string
 		AboutMe  string
 	}
-	uc := ctx.MustGet("claims").(*UserClaims) //与Get相比如果没有获取到user则会panic
+	uc := ctx.MustGet("claims").(*ijwt.UserClaims) //与Get相比如果没有获取到user则会panic
 	user, err := u.svc.Profile(ctx, uc.Uid)
 	if err != nil {
 		ctx.JSON(http.StatusOK, Result{
@@ -567,7 +554,7 @@ func (u *UserHandler) Edit(ctx *gin.Context) {
 		return
 	}
 
-	uc := ctx.MustGet("claims").(*UserClaims)
+	uc := ctx.MustGet("claims").(*ijwt.UserClaims)
 	err = u.svc.UpdateNonSensitiveInfo(ctx, domain.User{
 		Id:       uc.Uid,
 		Nickname: req.Nickname,
