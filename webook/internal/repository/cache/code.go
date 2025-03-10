@@ -90,5 +90,5 @@ func (c *RedisCodeCache) Verify(ctx context.Context, biz, phone, inputCode strin
 //func (c *RedisCodeCache) Verify(ctx context.Context, biz, phone, code string) error { }
 
 // LocalCodeCache 假如要切换到本地内存 就需要把lua脚本的逻辑在这里在写一遍
-type LocalCodeCache struct {
-}
+//type LocalCodeCache struct {
+//}
