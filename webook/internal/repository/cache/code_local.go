@@ -25,6 +25,7 @@ type LocalCodeCache struct {
 	// 读写锁 rwLock sync.RWMutex可以多个人加读锁
 	rwLock     sync.RWMutex
 	expiration time.Duration
+	maps       sync.Map
 }
 
 func NewLocalCodeCache(c *lru.Cache, expiration time.Duration) *LocalCodeCache {
@@ -34,41 +35,36 @@ func NewLocalCodeCache(c *lru.Cache, expiration time.Duration) *LocalCodeCache {
 	}
 }
 
-//// 通过biz+phone来加锁
-//func (l *LocalCodeCache) lockKey(biz, phone string) string {
-//	return fmt.Sprintf("%s:%s", biz, phone)
-//}
-//
-//// 获取锁(为biz+phone创建锁)
-//func (l *LocalCodeCache) getLock(key string) *sync.Mutex {
-//	lock, _ := l.lockMap.LoadOrStore(key, &sync.Mutex{})
-//	return lock.(*sync.Mutex)
-//}
-
 func (l *LocalCodeCache) Set(ctx context.Context, biz string, phone string, code string) error {
-	// 加了读锁
-	l.rwLock.RLock()
-	// 释放了读锁
-	l.rwLock.RUnlock()
-	// 加了写锁
-	l.rwLock.Lock()
-	// 释放了写锁
-	l.rwLock.Unlock()
+	//// 加了读锁
+	//	//l.rwLock.RLock()
+	//	//// 释放了读锁
+	//	//l.rwLock.RUnlock()
+	//	//// 加了写锁
+	//	//l.rwLock.Lock()
+	//	//// 释放了写锁
+	//	//l.rwLock.Unlock()
 
 	l.lock.Lock()
 	defer l.lock.Unlock()
 	// 这里可以考虑读写锁来优化，但是效果不会很好（通过biz+phone来加锁）
 	// 因为你可以预期，大部分时候是要走到写锁里面的
-	//key := l.key(biz, phone)
-	//lock := l.getLock(key) // 获取对应 key 的锁
-	//
-	//lock.Lock()  // 加锁
-	//defer lock.Unlock() // 解锁
-	//now := time.Now()
-	//val, ok := l.cache.Load(key) 	// 尝试获取缓存中的数据
 
 	// 我选用的本地缓存，很不幸的是，没有获得过期时间的接口，所以
 	key := l.key(biz, phone)
+	// 通过biz+phone加锁.如果你的key非常多，这个maps本身就占据了很多内存
+	// 写法1：
+	//lock, _ := l.maps.LoadOrStore(key, &sync.Mutex{})
+	//lock.(*sync.Mutex).Lock()
+	//defer lock.(*sync.Mutex).Unlock()
+	// 写法2：
+	//lock, _ := l.maps.LoadOrStore(key, &sync.Mutex{})
+	//lock.(*sync.Mutex).Lock()
+	//defer func() {
+	//	l.maps.Delete(key)
+	//	lock.(*sync.Mutex).Unlock()
+	//}()
+
 	now := time.Now()
 	val, ok := l.cache.Get(key)
 	if !ok {
@@ -76,7 +72,7 @@ func (l *LocalCodeCache) Set(ctx context.Context, biz string, phone string, code
 		l.cache.Add(key, codeItem{
 			code:   code,
 			cnt:    3,
-			expire: now.Add(l.expiration),
+			expire: now.Add(l.expiration), // 过期时间需要自己维护，cache中没有TTL的调用
 		})
 		return nil
 	}
@@ -98,6 +94,24 @@ func (l *LocalCodeCache) Set(ctx context.Context, biz string, phone string, code
 		expire: now.Add(l.expiration),
 	})
 	return nil
+}
+func (l *LocalCodeCache) Verify(ctx context.Context, biz string, phone string) (bool, error) {
+	l.lock.Lock()
+	defer l.lock.Unlock()
+	key := l.key(biz, phone)
+	val, ok := l.cache.Get(key)
+	if !ok {
+		return false, ErrKeyNotExist
+	}
+	item, ok := val.(codeItem)
+	if !ok {
+		return false, errors.New("系统错误")
+	}
+	if item.cnt <= 0 {
+		return false, ErrCodeVerifyTooManyTimes
+	}
+	item.cnt--
+	return item.code == item.code, nil
 }
 
 func (l *LocalCodeCache) key(biz string, phone string) string {

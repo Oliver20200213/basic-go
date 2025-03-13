@@ -5,11 +5,16 @@ import (
 	"basic-go/webook/internal/service/sms"
 	"context"
 	"fmt"
+	"github.com/fsnotify/fsnotify"
+	"github.com/spf13/viper"
+	"go.uber.org/atomic"
 	"math/rand"
 	"time"
 )
 
-const codeTplId = "1877556"
+// const codeTplId = "1877556"
+// 改造成实时更新的配置
+var codeTplId = atomic.String{}
 
 var (
 	ErrCodeSendTooMany        = repository.ErrCodeSendTooMany
@@ -28,6 +33,11 @@ type codeService struct {
 }
 
 func NewCodeService(repo repository.CodeRepository, smsSvc sms.Service) CodeService {
+	codeTplId.Store("1877556") // 先初始化一个值
+	// 启动onchange
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		codeTplId.Store(viper.GetString("code.tpl.id"))
+	})
 	return &codeService{repo: repo, smsSvc: smsSvc}
 }
 
@@ -45,7 +55,7 @@ func (svc *codeService) Send(ctx context.Context,
 		return err
 	}
 	// 发送出去
-	err = svc.smsSvc.Send(ctx, codeTplId, []string{code}, phone)
+	err = svc.smsSvc.Send(ctx, codeTplId.Load(), []string{code}, phone) //codeTplId.Load()获取当前codeTplId的值
 	//if err != nil {
 	//	// 这个地方怎么办？ 是否引入重试？
 	//	// 这意味着，Redis 有这个验证码，但是短信没有发送成功，用户根本收不到

@@ -1,17 +1,68 @@
 package ioc
 
 import (
-	"basic-go/webook/config"
 	"basic-go/webook/internal/repository/dao"
+	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
+//func InitDB() *gorm.DB {
+//	//db, err := gorm.Open(mysql.Open("root:root@tcp(127.0.0.1:13316)/webook"))
+//	//连接到k8s的mysql，需要使用k8s-mysql-service.yaml中metadata的name以及port来连接
+//	//db, err := gorm.Open(mysql.Open("root:root@tcp(webook-mysql:3309)/webook"))
+//	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
+//	if err != nil {
+//		//只会再初始化过程中 panic
+//		//panic相当于证个goroutine结束
+//		//一段初始化过程出错，应用就不要启动了
+//		panic(err)
+//	}
+//
+//	//初始化建表语句
+//	err = dao.InitTable(db)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	return db
+//}
+
+// 使用viper
 func InitDB() *gorm.DB {
-	//db, err := gorm.Open(mysql.Open("root:root@tcp(127.0.0.1:13316)/webook"))
-	//连接到k8s的mysql，需要使用k8s-mysql-service.yaml中metadata的name以及port来连接
-	//db, err := gorm.Open(mysql.Open("root:root@tcp(webook-mysql:3309)/webook"))
-	db, err := gorm.Open(mysql.Open(config.Config.DB.DSN))
+	//dsn := viper.GetString("db.mysql.dsn")
+	////viper.GetDuration("")  // 1s,1m,1h这种
+	////viper.GetFloat64()   // 注意精度问题
+	//fmt.Println("dsn:", dsn)
+
+	// 注意：只有在初始化的过程中才会读取配置
+	type Config struct {
+		DSN string `yaml:"dsn"`
+
+		//// 有人的做法会拆分DSN,不是很推荐
+		//// localhost:13316
+		//Addr string
+		//// root
+		//Username string
+		//// root
+		//Password string
+		//// webook
+		//DBName string
+
+	}
+	//// 设置默认值的方式2：利用结构体，常用这种方式
+	//var cfg Config = Config{
+	//	DSN: "root:root@tcp(localhost:3306)/webook_default",
+	//}
+
+	var cfg Config
+	//err := viper.UnmarshalKey("db.mysql", &cfg) // 注意remote这里不支持key的切割，也就是不支持db.mysql，需要改下dev里面改下
+	err := viper.UnmarshalKey("db", &cfg) // 注意这里不支持db.mysql需要改下dev里面改下去掉.mysql
+	if err != nil {
+		panic(err)
+	}
+
+	db, err := gorm.Open(mysql.Open(cfg.DSN))
 	if err != nil {
 		//只会再初始化过程中 panic
 		//panic相当于证个goroutine结束

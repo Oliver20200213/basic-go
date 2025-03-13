@@ -99,10 +99,18 @@ func (r *RedisJWTHandler) ClearToken(ctx *gin.Context) error {
 }
 
 func (r *RedisJWTHandler) CheckSession(ctx *gin.Context, ssid string) error {
-	cnt, err := r.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", ssid)).Result()
-	if err != nil || cnt > 0 {
-		// 要么redis有问题，要么已经退出登录了
-		return errors.New("redis error or ssid已存在")
+	val, err := r.cmd.Exists(ctx, fmt.Sprintf("users:ssid:%s", ssid)).Result()
+	switch err {
+	case redis.Nil: // 不在redis里面
+		return nil
+	case nil:
+		if val == 0 { // key存在，但是没这个值
+			return nil
+		}
+		// 如果val不为0， 说明key是存在的也就是不能让其登录，session是无效的
+		return errors.New("session 已经无效了")
+	default:
+		return err
 	}
-	return nil
+
 }
