@@ -4,8 +4,11 @@ import (
 	"basic-go/webook/internal/web"
 	ijwt "basic-go/webook/internal/web/jwt"
 	"basic-go/webook/internal/web/middleware"
+	"basic-go/webook/pkg/ginx/middlewares/logger"
 	"basic-go/webook/pkg/ginx/middlewares/ratelimit"
+	logger2 "basic-go/webook/pkg/logger"
 	ratelimite2 "basic-go/webook/pkg/ratelimit"
+	"context"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
@@ -22,9 +25,14 @@ func InitWebServer(mdls []gin.HandlerFunc, UserHdl *web.UserHandler,
 	return server
 }
 
-func InitMiddlewares(redisClient redis.Cmdable, jwtHandler ijwt.Handler) []gin.HandlerFunc {
+func InitMiddlewares(redisClient redis.Cmdable,
+	jwtHandler ijwt.Handler,
+	l logger2.LoggerV1) []gin.HandlerFunc {
 	return []gin.HandlerFunc{
 		corsHdl(),
+		logger.NewMiddlewareLoggerBuilder(func(ctx context.Context, al *logger.AccessLog) {
+			l.Debug("HTTP请求", logger2.Field{Key: "al", Value: al})
+		}).AllowRespBody().AllowReqBody().Build(),
 		loginJWTHdl(jwtHandler),
 		rateLimitHdl(redisClient),
 	}

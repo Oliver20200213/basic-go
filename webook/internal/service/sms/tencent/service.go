@@ -7,6 +7,7 @@ import (
 	"github.com/ecodeclub/ekit"
 	"github.com/ecodeclub/ekit/slice"
 	sms "github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sms/v20210111"
+	"go.uber.org/zap"
 )
 
 type Service struct {
@@ -68,6 +69,9 @@ func (s *Service) Send(ctx context.Context, biz string, args []string, numbers .
 	// 例如：短信模板是：验证码是：${code}，${code}是一个变量，表示验证码
 	// args = []string{"1234",} 这里${code}就是1234
 	resp, err := s.client.SendSms(req)
+	zap.L().Debug("发送短信", zap.Any("req", req),
+		zap.Any("resp", resp),
+		zap.Error(err))
 	if err != nil {
 		return err
 	}

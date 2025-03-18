@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 	"net/http"
 	"time"
 )
@@ -128,6 +129,13 @@ func (u *UserHandler) RefreshToken(ctx *gin.Context) {
 	err = u.SetJWTToken(ctx, rc.Uid, rc.Ssid)
 	if err != nil {
 		ctx.AbortWithStatus(http.StatusUnauthorized)
+		// 错误用法：系统日常这种含糊的日志信息，打了也没用，信息量不足
+		//zapx.L().Error("系统日常", zapx.Error(err))
+		// 正常来讲，msg的部分就应该有高足够的定位信息
+		zap.L().Error("设置JWT token穿线异常",
+			zap.Error(err),
+			zap.String("method", "UserHandler:RefreshToken"))
+		return
 	}
 
 	ctx.JSON(http.StatusOK, Result{
@@ -161,6 +169,14 @@ func (u *UserHandler) LoginSms(ctx *gin.Context) {
 			Code: 5,
 			Msg:  "系统错误",
 		})
+		// 实际记录的格式{"level":"error","ts":发生的时间戳,"caller":"发生日志的位置","msg":"请求处理失败(就是你定义的msg)","error":"实际error的数据"}
+		zap.L().Error("检验验证码出错", zap.Error(err),
+			// 不能这样打，因为手机号码是敏感数据，你不能打到日志里面
+			// 如果一定要打，方式1：需要打印加密后的串
+			// 方式2：脱敏，152****1234
+			zap.String("手机号码", req.Phone))
+		// 最多最多在debug中用一下
+		zap.L().Debug("", zap.String("手机号码", req.Phone))
 		return
 	}
 	if !ok {
@@ -224,6 +240,11 @@ func (u *UserHandler) SendLoginSMSCode(ctx *gin.Context) {
 			Msg: "发送成功",
 		})
 	case service.ErrCodeSendTooMany:
+		// 在打日志的时候可能会有个问题，日志重复的问题
+		// 同一个模块有多个同事维护，那么每一层可能都会打印日志，就会出现同一个错误在日志里面出现好多遍，这不是个大问题
+		// 如果整个模块都是自己维护的，那么只要在调用redis层面打印就行
+		//zapx.L().Warn("短信发送太频繁",
+		//	zapx.Error(err))
 		ctx.JSON(http.StatusOK, Result{
 			Msg: "发送太频繁，请稍后再试",
 		})

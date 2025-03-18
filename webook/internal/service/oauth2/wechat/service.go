@@ -2,9 +2,11 @@ package wechat
 
 import (
 	"basic-go/webook/internal/domain"
+	"basic-go/webook/pkg/logger"
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.uber.org/zap"
 	"net/http"
 	"net/url"
 )
@@ -21,18 +23,20 @@ type service struct {
 	appId     string
 	appSecret string
 	client    *http.Client
+	l         logger.LoggerV1
 }
 
-func NewService(appId, appSecret string) Service {
+func NewService(appId, appSecret string, l logger.LoggerV1) Service {
 	return &service{
 		appId:     appId,
 		appSecret: appSecret,
 		// 依赖注入但是没有完全注入
 		client: http.DefaultClient, //偷懒的写法
+		l:      l,
 	}
 }
 
-// 不偷懒的写法，依赖注入的写法
+// client不偷懒的写法，依赖注入的写法
 func NewServiceV1(appId, appSecret string, client *http.Client) Service {
 	return &service{
 		appId:     appId,
@@ -86,6 +90,11 @@ func (s *service) VerifyCode(ctx context.Context, code string) (domain.WeChatInf
 	if res.ErrCode != 0 {
 		return domain.WeChatInfo{}, fmt.Errorf("微信返回错误响应，错误码：%d,错误信息：%s", res.ErrCode, res.ErrMsg)
 	}
+	// info可以在你认为必要的地方打上，例如你认为拿到这两个信息很关键，就可以打上
+	zap.L().Info("调用微信拿到用户信息",
+		zap.String("OpenId", res.Openid),
+		zap.String("unionId", res.UnionID))
+
 	return domain.WeChatInfo{
 		OpenId:  res.Openid,
 		UnionId: res.UnionID,

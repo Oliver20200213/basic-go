@@ -3,6 +3,7 @@ package service
 import (
 	"basic-go/webook/internal/domain"
 	"basic-go/webook/internal/repository"
+	"basic-go/webook/pkg/logger"
 	"context"
 	"errors"
 	"golang.org/x/crypto/bcrypt"
@@ -23,12 +24,23 @@ type UserService interface {
 type userService struct {
 	repo repository.UserRepository
 	//redis *redis.Client //错误实践 不是很严谨的方式
+	l logger.LoggerV1
 }
 
 // 我用的人，只管用，怎初始化我不管， 我一点都不关心如何初始化
-func NewUserService(repo repository.UserRepository) UserService {
+func NewUserService(repo repository.UserRepository, l logger.LoggerV1) UserService {
 	return &userService{
 		repo: repo,
+		l:    l, // 完全显示的依赖注入
+	}
+}
+
+// NewUserServiceV1 简化版的依赖注入
+func NewUserServiceV1(repo repository.UserRepository) UserService {
+	return &userService{
+		repo: repo,
+		//logger: zap.L(), // 是依赖注入但是没有完全注入，保留了变化的空间
+		// 注意：在使用zap.L()的时候需要先设置好全局logger，一般是在main中设置，zap.ReplaceGlobals(zap.NewDevelopment())
 	}
 }
 
@@ -89,6 +101,14 @@ func (svc *userService) FindOrCreate(ctx context.Context, phone string) (domain.
 	//	return domain.User{}, errors.New("系统降级了")
 	//}
 
+	// 这里把phone脱敏
+	//zap.L().Info("用户未注册", zap.String("phone", phone))
+	//svc.logger.Info("用户未注册", zap.String("phone", phone))
+
+	// 这种用法和直接使用zap.L() 没有本质的区别，它的缺陷是一样的强耦合、却放扩展性
+	//loggerxx.Logger.Info("用户未注册", zap.String("phone", phone))
+
+	svc.l.Info("用户未注册", logger.String("phone", phone))
 	// 这个叫做慢路径
 	// 你明确知道 没有这个用户
 	u = domain.User{

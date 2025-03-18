@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
+	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	_ "github.com/spf13/viper/remote"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -20,13 +22,14 @@ func main() {
 	//server.GET("/hello", func(ctx *gin.Context) {
 	//	ctx.String(http.StatusOK, "这是hello Go页面！")
 	//})
-	initViperRemote()
-
+	//initViperRemote()
+	initViperV2()
+	initLogger()
 	//initViperWatch()
-	keys := viper.AllKeys()
-	fmt.Println("keys:", keys)
-	setting := viper.AllSettings()
-	fmt.Println("setting:", setting)
+	//keys := viper.AllKeys()
+	//fmt.Println("keys:", keys)
+	//setting := viper.AllSettings()
+	//fmt.Println("setting:", setting)
 
 	server := InitWebServer()
 
@@ -35,7 +38,31 @@ func main() {
 
 }
 
-// viper使用
+// 引入zap
+func initLogger() {
+	// 初始化
+	logger, err := zap.NewDevelopment()
+	if err != nil {
+		panic(err)
+	}
+
+	zap.L().Info("这是replace之前")
+	// 如果你不replace 直接用zap.L(),你啥都打不出来,如果是直接用logger可以不用replace
+	zap.ReplaceGlobals(logger)
+	zap.L().Info("hello， 你出错了")
+
+	type Demo struct {
+		Name string `json:"name"`
+	}
+	zap.L().Info("这是实验参数",
+		zap.Error(errors.New("这是一个error")),
+		zap.Int64("id", 123),
+		zap.Any("这是一个结构体", Demo{Name: "oliver"}),
+	)
+
+}
+
+// 引入viper
 // 方式1：
 func initViper() {
 	// 配置文件的名字，但是不包含文件扩展名
