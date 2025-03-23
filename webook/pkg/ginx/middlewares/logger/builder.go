@@ -4,24 +4,31 @@ import (
 	"bytes"
 	"context"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/atomic"
 	"io"
 	"time"
 )
 
+// MiddlewareLoggerBuilder 注意点：
+// 1.小心日志内容过多，URL可能很长，请求体，响应体可能很大，你要考虑是不是完全输入到日志里面
+// 2.考虑到1的问题，以及用户可能换用不同的日志框架，所以要有足够的灵活性
+// 3.考虑动态开关，结合监听配置文件，要小心并发安全
 type MiddlewareLoggerBuilder struct {
-	allowReqBody  bool
+	//allowReqBody  bool
+	allowReqBody  *atomic.Bool // 动态开关
 	allowRespBody bool
 	loggerFunc    func(ctx context.Context, al *AccessLog)
 }
 
 func NewMiddlewareLoggerBuilder(fn func(ctx context.Context, al *AccessLog)) *MiddlewareLoggerBuilder {
 	return &MiddlewareLoggerBuilder{
-		loggerFunc: fn,
+		loggerFunc:   fn,
+		allowReqBody: atomic.NewBool(false),
 	}
 }
 
-func (b *MiddlewareLoggerBuilder) AllowReqBody() *MiddlewareLoggerBuilder {
-	b.allowReqBody = true
+func (b *MiddlewareLoggerBuilder) AllowReqBody(ok bool) *MiddlewareLoggerBuilder {
+	b.allowReqBody.Store(ok)
 	return b
 }
 
@@ -42,7 +49,7 @@ func (b *MiddlewareLoggerBuilder) Build() gin.HandlerFunc {
 			// url也可能很长，可以不打全部，
 			Url: url,
 		}
-		if b.allowReqBody && ctx.Request.Body != nil {
+		if b.allowReqBody.Load() && ctx.Request.Body != nil {
 			// 直接忽略 error 不影响程序运行
 			//body, _ := io.ReadAll(ctx.Request.Body)
 			body, _ := ctx.GetRawData() // 本质是调用io.ReadAll(ctx.Request.Body)来读取数据

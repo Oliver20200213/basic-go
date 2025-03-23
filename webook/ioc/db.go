@@ -2,9 +2,12 @@ package ioc
 
 import (
 	"basic-go/webook/internal/repository/dao"
+	"basic-go/webook/pkg/logger"
 	"github.com/spf13/viper"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
+	glogger "gorm.io/gorm/logger"
+	"time"
 )
 
 //func InitDB() *gorm.DB {
@@ -29,7 +32,7 @@ import (
 //}
 
 // 使用viper
-func InitDB() *gorm.DB {
+func InitDB(l logger.LoggerV1) *gorm.DB {
 	//dsn := viper.GetString("db.mysql.dsn")
 	////viper.GetDuration("")  // 1s,1m,1h这种
 	////viper.GetFloat64()   // 注意精度问题
@@ -62,7 +65,19 @@ func InitDB() *gorm.DB {
 		panic(err)
 	}
 
-	db, err := gorm.Open(mysql.Open(cfg.DSN))
+	db, err := gorm.Open(mysql.Open(cfg.DSN), &gorm.Config{
+		// 缺了一个writer
+		Logger: glogger.New(gormLoggerFunc(l.Debug), glogger.Config{ // 日志的的配置
+			// 慢查询阈值，只有执行时间超过这个阈值，才会使用
+			// 50ms 100ms都是比较合适的阈值
+			// SQL 查询必然要求命中索引，最好就是走一次磁盘IO
+			// 一次磁盘IO 是不到10ms
+			SlowThreshold:             time.Millisecond * 10, // 只有超过10ms的才会输出到日志
+			IgnoreRecordNotFoundError: true,
+			ParameterizedQueries:      true, // 这里设置成true之后 sql语句中的value就会变成?
+			LogLevel:                  glogger.Info,
+		}),
+	})
 	if err != nil {
 		//只会再初始化过程中 panic
 		//panic相当于证个goroutine结束
@@ -78,3 +93,21 @@ func InitDB() *gorm.DB {
 
 	return db
 }
+
+type gormLoggerFunc func(msg string, fields ...logger.Field)
+
+func (g gormLoggerFunc) Printf(msg string, args ...interface{}) {
+	g(msg, logger.Field{Key: "args", Value: args})
+}
+
+/*
+type DoSomething interface {
+	DoABC() string
+}
+
+type DoSomethingFunc func() string
+
+func (d DoSomethingFunc) DoABC() string {
+	return d()
+}
+*/

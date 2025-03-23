@@ -9,9 +9,11 @@ import (
 	logger2 "basic-go/webook/pkg/logger"
 	ratelimite2 "basic-go/webook/pkg/ratelimit"
 	"context"
+	"github.com/fsnotify/fsnotify"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"github.com/spf13/viper"
 	"strings"
 	"time"
 )
@@ -28,11 +30,17 @@ func InitWebServer(mdls []gin.HandlerFunc, UserHdl *web.UserHandler,
 func InitMiddlewares(redisClient redis.Cmdable,
 	jwtHandler ijwt.Handler,
 	l logger2.LoggerV1) []gin.HandlerFunc {
+	bd := logger.NewMiddlewareLoggerBuilder(func(ctx context.Context, al *logger.AccessLog) {
+		l.Debug("HTTP请求", logger2.Field{Key: "al", Value: al})
+	}).AllowRespBody().AllowReqBody(true)
+	// 在这里监听logreq的变化
+	viper.OnConfigChange(func(in fsnotify.Event) {
+		ok := viper.GetBool("web.logreq") //从配置环境中获取web.logreq的布尔值
+		bd.AllowReqBody(ok)
+	})
 	return []gin.HandlerFunc{
 		corsHdl(),
-		logger.NewMiddlewareLoggerBuilder(func(ctx context.Context, al *logger.AccessLog) {
-			l.Debug("HTTP请求", logger2.Field{Key: "al", Value: al})
-		}).AllowRespBody().AllowReqBody().Build(),
+		bd.Build(),
 		loginJWTHdl(jwtHandler),
 		rateLimitHdl(redisClient),
 	}
